@@ -1,0 +1,9 @@
+{
+  "name": "Snap.js",
+  "repo": "pgherveou/Snap.js",
+  "description": "Snap.js component",
+  "dependencies": {},
+  "local": [],
+  "scripts": ["snap.js"],
+  "main": "snap.js"
+}

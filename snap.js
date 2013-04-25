@@ -152,7 +152,7 @@
                         animatingInterval = setInterval(function() {
                             utils.dispatchEvent('animating');
                         }, 1);
-                    
+
                     utils.events.addEvent(settings.element, transitionCallback, function() {
                         settings.element.style[cache.vendor+'Transition'] = '';
                         cache.translation = action.translate.get.matrix(4);
@@ -217,7 +217,7 @@
                 },
                 dragging: function(e) {
                     if (cache.isDragging) {
-                        
+
                         var thePageX = utils.hasTouch ? e.touches[0].pageX : e.pageX,
                             thePageY = utils.hasTouch ? e.touches[0].pageY : e.pageY,
                             translated = cache.translation,
@@ -226,14 +226,14 @@
                             openingLeft = absoluteTranslation > 0,
                             translateTo = whileDragX,
                             diff;
-                        
+
                         if( (cache.intentChecked && !cache.hasIntent) || // Does user show intent?
                             ((translated!==settings.minPosition) && (thePageX-cache.startDragX)>0 && (settings.disable==='left')) || // Left pane Disabled?
                             ((translated!==settings.maxPosition) && (thePageX-cache.startDragX)<0 && (settings.disable==='right')) // Right pane Disabled?
                         ){
                             return;
                         }
-                        
+
                         if(settings.addBodyClasses){
                             if((absoluteTranslation)>0){
                                 utils.klass.add(doc.body, 'snapjs-left');
@@ -243,7 +243,7 @@
                                 utils.klass.remove(doc.body, 'snapjs-left');
                             }
                         }
-                        
+
                         if (cache.hasIntent === false || cache.hasIntent === null) {
                             var deg = utils.angleOfDrag(thePageX, thePageY),
                                 inRightRange = (deg >= 0 && deg <= settings.slideIntent) || (deg <= 360 && deg > (360 - settings.slideIntent)),
@@ -255,17 +255,17 @@
                             }
                             cache.intentChecked = true;
                         }
-                        
-                        if ( 
+
+                        if (
                             (settings.minDragDistance>=Math.abs(thePageX-cache.startDragX)) && // Has user met minimum drag distance?
                             (cache.hasIntent === false)
                         ) {
                             return;
                         }
-                        
+
                         utils.events.preventDefaultEvent(e);
                         utils.dispatchEvent('drag');
-                        
+
                         cache.dragWatchers.current = thePageX;
                         // Determine which direction we are going
                         if (cache.dragWatchers.last > thePageX) {
@@ -385,7 +385,7 @@
          * Public
          */
         this.open = function(side) {
-        
+
             utils.klass.remove(doc.body, 'snapjs-expand-left');
             utils.klass.remove(doc.body, 'snapjs-expand-right');
 
@@ -408,7 +408,7 @@
         };
         this.expand = function(side){
             var to = win.innerWidth;
-            
+
             if(side==='left'){
                 utils.klass.add(doc.body, 'snapjs-expand-left');
                 utils.klass.remove(doc.body, 'snapjs-expand-right');
@@ -419,7 +419,7 @@
             }
             action.translate.easeTo(to);
         };
-        
+
         this.on = function(evt, fn) {
             eventList[evt] = fn;
             return this;
