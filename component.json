@@ -1,6 +1,6 @@
 {
-  "name": "Snap.js",
-  "repo": "pgherveou/Snap.js",
+  "name": "snap",
+  "repo": "pgherveou/snap",
   "description": "Snap.js component",
   "dependencies": {},
   "local": [],
