@@ -434,7 +434,7 @@ Snap.prototype.endDrag = function(e) {
       }
   }
   this.isDragging = false;
-  this.startDragX = hasTouch ? e.touches[0].pageX : e.pageX;
+  this.startDragX = (hasTouch && e.touches.length && e.touches[0]) ? e.touches[0].pageX : e.pageX;
 };
 
 /**
