@@ -86,6 +86,12 @@ function Snap(el, opts) {
 }
 
 /**
+ * Mixin emitter
+ */
+
+Emitter(Snap.prototype);
+
+/**
  * get transform matrix index
  *
  * @param  {Number} index
@@ -116,14 +122,14 @@ Snap.prototype.easeTo = function(n) {
 
   var cb = function() {
     self.el.style[transition] = '';
-    self.translation = self.matrix(4);
+    self.translation = n;
     self.easing = false;
 
-    if (n == self.opts.maxPosition) self.setBodyClass('snap-open-left');
-    else if (n > self.opts.maxPosition) self.setBodyClass('snap-expand-left');
-    else if (n == self.opts.minPosition) self.setBodyClass('snap-open-right');
-    else if (n < self.opts.minPosition) self.setBodyClass('snap-expand-right');
-    else self.setBodyClass('snap-closed', n);
+    if (n == window.innerWidth) self.setBodyClass('snap-expand-left');
+    else if (n >= self.opts.maxPosition) self.setBodyClass('snap-open-left');
+    else if (n == -window.innerWidth) self.setBodyClass('snap-expand-right');
+    else if (n <= self.opts.minPosition) self.setBodyClass('snap-open-right');
+    else self.setBodyClass('snap-closed');
 
     self.emit('animated', self.state);
   };
@@ -149,17 +155,20 @@ Snap.prototype.setBodyClass = function(className) {
 };
 
 /**
- * set state and add class to body
+ * set opening state
  *
+ * @return {String}
  * @api private
  */
 
-Snap.prototype.setState = function(state) {
-  var opening = state.opening;
-  if (this.state.opening === opening) return;
-  if (opening === 'left') this.setBodyClass('snap-opening-left');
-  else if(opening === 'right') this.setBodyClass('snap-opening-right');
-  this.state = state;
+Snap.prototype.opening = function(opening) {
+  if (this.state.opening !== opening) {
+    if (opening === 'left')
+      this.setBodyClass('snap-opening-left');
+    else if(opening === 'right')
+      this.setBodyClass('snap-opening-right');
+  }
+  return opening;
 };
 
 /**
@@ -253,8 +262,8 @@ Snap.prototype.startDrag = function(e) {
     state: ''
   };
 
-  this.setState({
-    opening: null,
+  this.state = {
+    opening: this.opening(null),
     towards: null,
     hyperExtending: null,
     halfway: null,
@@ -265,7 +274,7 @@ Snap.prototype.startDrag = function(e) {
       sinceDirectionChange: 0,
       percentage: 0
     }
-  });
+  };
 };
 
 /**
@@ -277,7 +286,6 @@ Snap.prototype.startDrag = function(e) {
 
 Snap.prototype.dragging = function(e) {
   if (!this.isDragging) return;
-
   var thePageX = hasTouch ? e.touches[0].pageX : e.pageX,
       thePageY = hasTouch ? e.touches[0].pageY : e.pageY,
       translated = this.translation,
@@ -328,8 +336,8 @@ Snap.prototype.dragging = function(e) {
             diff = (absoluteTranslation - this.opts.maxPosition) * this.opts.resistance;
             translateTo = whileDragX - diff;
         }
-        this.setState({
-            opening: 'left',
+        this.state = {
+            opening: this.opening('left'),
             towards: this.dragWatchers.state,
             hyperExtending: this.opts.maxPosition < absoluteTranslation,
             halfway: absoluteTranslation > (this.opts.maxPosition / 2),
@@ -340,15 +348,15 @@ Snap.prototype.dragging = function(e) {
                 sinceDirectionChange: (this.dragWatchers.current - this.dragWatchers.hold),
                 percentage: (absoluteTranslation/this.opts.maxPosition)*100
             }
-        });
+        };
     } else {
         // Pulling too far to the left
         if (this.opts.minPosition > absoluteTranslation) {
             diff = (absoluteTranslation - this.opts.minPosition) * this.opts.resistance;
             translateTo = whileDragX - diff;
         }
-        this.setState({
-            opening: 'right',
+        this.state = {
+            opening: this.opening('right'),
             towards: this.dragWatchers.state,
             hyperExtending: this.opts.minPosition > absoluteTranslation,
             halfway: absoluteTranslation < (this.opts.minPosition / 2),
@@ -359,7 +367,7 @@ Snap.prototype.dragging = function(e) {
                 sinceDirectionChange: (this.dragWatchers.current - this.dragWatchers.hold),
                 percentage: (absoluteTranslation/this.opts.minPosition)*100
             }
-        });
+        };
     }
     this.translate(translateTo + translated);
 };
@@ -420,26 +428,49 @@ Snap.prototype.endDrag = function(e) {
   this.startDragX = hasTouch ? e.touches[0].pageX : e.pageX;
 };
 
-
 /**
  * open a drawer
  *
- * @param  {[String]} side
- * @api public
+ *  @param  {String} side
+ *  @api public
  */
 
 Snap.prototype.open = function(side) {
   if (side === 'left') {
-    this.setBodyClass('snap-opening-left');
-    this.state.opening = 'left';
+    this.state.opening = this.opening('left');
     this.state.towards = 'right';
     this.easeTo(this.opts.maxPosition);
   } else if (side === 'right') {
-    this.setBodyClass('snap-opening-right');
-    this.state.opening = 'right';
+    this.state.opening = this.opening('right');
     this.state.towards = 'left';
     this.easeTo(this.opts.minPosition);
   }
+};
+
+/**
+ * toggle a drawer
+ *
+ *  @param  {String} side
+ *  @public
+ */
+
+Snap.prototype.toggle = function(side) {
+  var state = this.getState();
+  if (state === 'closed') {
+    this.open('side');
+  } else {
+    this.close();
+  }
+};
+
+/**
+ * close drawer
+ *
+ * @api public
+ */
+
+Snap.prototype.close = function () {
+  this.easeTo(0);
 };
 
 /**
@@ -467,19 +498,3 @@ Snap.prototype.getState = function () {
   else if (fromLeft <= this.opts.minPosition) return 'right';
   return 'closed';
 };
-
-/**
- * close drawer
- *
- * @api public
- */
-
-Snap.prototype.close = function () {
-  this.easeTo(0);
-};
-
-/**
- * Mixin emitter
- */
-
-Emitter(Snap.prototype);
