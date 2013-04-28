@@ -58,7 +58,9 @@ module.exports = Snap;
 
 /**
  * Initialize a new `Snap`
- *
+ * 
+ * @param {Element} el
+ * @param {Object} opts
  * @api public
  */
 
@@ -191,6 +193,7 @@ Snap.prototype.translate = function(n) {
 /**
  * Listen Drag events
  *
+ * @param  {Object} opts
  * @api public
  */
 
