@@ -259,8 +259,10 @@ Snap.prototype.startDrag = function(e) {
   this.isDragging = true;
   this.hasIntent = null;
   this.intentChecked = false;
-  this.startDragX = hasTouch ? e.touches[0].pageX : e.pageX;
-  this.startDragY = hasTouch ? e.touches[0].pageY : e.pageY;
+
+  this.startDragX = (hasTouch && e.touches.length && e.touches[0]) ? e.touches[0].pageX : e.pageX;
+  this.startDragY = (hasTouch && e.touches.length && e.touches[0]) ? e.touches[0].pageY : e.pageY;
+
   this.dragWatchers = {
     current: 0,
     last: 0,
