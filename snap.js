@@ -971,20 +971,21 @@ Snap.prototype.setOpts = function(opts) {
 Emitter(Snap.prototype);
 
 /**
- * get transform matrix index
+ * get translation left position
  *
- * @param  {Number} index
  * @return {Number}
  * @api private
  */
 
-Snap.prototype.matrix = function(index) {
-  var matrix = window.getComputedStyle(this.el)[transform].match(/\((.*)\)/);
+Snap.prototype.position = function() {
+  var style = window.getComputedStyle(this.el)
+    , matrix = style[transform].match(/\((.*)\)/);
   if (matrix) {
     matrix = matrix[1].split(',');
-    return parseInt(matrix[index], 10);
+    return parseInt(matrix[4], 10);
+  } else {
+    return +style['left'].split('px')[0] || 0;
   }
-  return 0;
 };
 
 /**
@@ -1168,7 +1169,7 @@ Snap.prototype.dragging = function(e) {
   var thePageX = hasTouch ? e.touches[0].pageX : e.pageX,
       thePageY = hasTouch ? e.touches[0].pageY : e.pageY,
       translated = this.translation,
-      absoluteTranslation = this.matrix(4),
+      absoluteTranslation = this.position(),
       whileDragX = thePageX - this.startDragX,
       openingLeft = absoluteTranslation > 0,
       translateTo = whileDragX,
@@ -1263,7 +1264,7 @@ Snap.prototype.endDrag = function(e) {
   if (!this.isDragging) return;
 
   this.emit('end', this.state);
-  var translated = this.matrix(4);
+  var translated = this.position();
 
   // Tap Close
   if (this.dragWatchers.current === 0 && translated !== 0 && this.opts.tapToClose) {
@@ -1315,7 +1316,7 @@ Snap.prototype.endDrag = function(e) {
  */
 
 Snap.prototype.getState = function () {
-  var fromLeft = this.matrix(4);
+  var fromLeft = this.position();
   if (fromLeft >= this.opts.maxPosition) return 'left';
   else if (fromLeft <= this.opts.minPosition) return 'right';
   return 'closed';
