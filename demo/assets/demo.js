@@ -1,3 +1,4 @@
 document.getElementById('open-left').addEventListener('click', function(){
-	snapper.open('left');
+	if (snapper.getState() === 'closed')
+		snapper.open('left');
 });

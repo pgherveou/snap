@@ -1,8 +1,21 @@
 {
   "name": "snap",
   "repo": "pgherveou/snap",
-  "description": "Snap.js component",
+  "description": "snap.js component",
   "dependencies": {},
+  "local": [],
+  "scripts": ["snap.js"],
+  "main": "snap.js",
+  "dependencies": {
+    "component/emitter": "*",
+    "component/bind": "*",
+    "component/translate": "*",
+    "component/classes": "*",
+    "pgherveou/event": "*",
+    "yields/prevent": "*",
+    "pgherveou/prefix": "*",
+    "pgherveou/transitionend": "*"
+  },
   "local": [],
   "scripts": ["snap.js"],
   "main": "snap.js"

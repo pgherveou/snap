@@ -43,7 +43,7 @@
                 </div>
                 <div class="right-drawer absolute"></div>
             </div>
-            
+
             <div id="content" class="absolute">
                 <div class="relative tall">
                     <div id="toolbar" class="absolute">
@@ -53,24 +53,24 @@
                 </div>
             </div>
         </div>
-        <script type="text/javascript" src="../../snap.js"></script>
+        <script type="text/javascript" src="../../build/build.js"></script>
         <script type="text/javascript">
-        	var snapper = new Snap({
-                element: document.getElementById('content'),
+            var Snap = require('snap')
+              , snapper = new Snap(document.getElementById('content'), {
                 disable: 'right'
             });
-            
+
             document.getElementById('search').addEventListener('focus', function(){
             	snapper.expand('left');
             });
-            
+
             document.getElementById('search').addEventListener('blur', function(){
             	snapper.open('left');
             });
-            
+
         </script>
-        
+
         <script type="text/javascript" src="../assets/demo.js"></script>
-        <script>!function(d,s,id){var js,fjs=d.getElementsByTagName(s)[0];if(!d.getElementById(id)){js=d.createElement(s);js.id=id;js.src="https://platform.twitter.com/widgets.js";fjs.parentNode.insertBefore(js,fjs);}}(document,"script","twitter-wjs");</script>       
+        <script>!function(d,s,id){var js,fjs=d.getElementsByTagName(s)[0];if(!d.getElementById(id)){js=d.createElement(s);js.id=id;js.src="https://platform.twitter.com/widgets.js";fjs.parentNode.insertBefore(js,fjs);}}(document,"script","twitter-wjs");</script>
     </body>
 </html>
