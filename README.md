@@ -1,3 +1,28 @@
+=========
+
+Forked from 1.6.x 
+
+* use classes, emitter, event, prevent, prefix, translate, transitionend component module dependencies to extract common code and add browser support and fallback stuffs
+
+* source is now index.js
+
+* snap.js is the standalone version
+
+* bodyclasses snap-left-opening, snap-left-expand, snap-left-open, snap-right-expand, snap-right-open, snap-right-opening,  snap-closed
+
+* events are animate, animated, ignore, start, drag, end
+
+* public api 
+  - constructor new Snap(el, opts)  
+	- setOpts(opts) 
+	- startListening(opts)
+	- stopListening()
+	- open(side)
+	- toggle(side)
+	- close()
+	- expand(side)
+
+
 # Snap.js
 A Library for creating beautiful mobile shelfs in Javascript
 
