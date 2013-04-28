@@ -37,7 +37,7 @@ var $body = classes(document.body),
     defaults = {
       addBodyClasses: true,
       disableLeft: false,
-      disableRight: true,
+      disableRight: false,
       tapToClose: true,
       touchToDrag: true,
       resistance: 0.5,
@@ -48,12 +48,7 @@ var $body = classes(document.body),
       minPosition: -266,
       slideIntent: 40, // degrees
       minDragDistance: 5
-    },
-    snapClasses = [
-      'snap-open-left', 'snap-opening-left',  'snap-expand-left',
-      'snap-opening-right', 'snap-open-right', 'snap-expand-right',
-      'snap-closed'
-    ];
+    };
 
 /**
  * Expose Snap
@@ -135,10 +130,10 @@ Snap.prototype.easeTo = function(n) {
     self.translation = n;
     self.easing = false;
 
-    if (n == window.innerWidth) self.setBodyClass('snap-expand-left');
-    else if (n >= self.opts.maxPosition) self.setBodyClass('snap-open-left');
-    else if (n == -window.innerWidth) self.setBodyClass('snap-expand-right');
-    else if (n <= self.opts.minPosition) self.setBodyClass('snap-open-right');
+    if (n == window.innerWidth) self.setBodyClass('snap-left-expand');
+    else if (n >= self.opts.maxPosition) self.setBodyClass('snap-left-open');
+    else if (n == -window.innerWidth) self.setBodyClass('snap-right-expand');
+    else if (n <= self.opts.minPosition) self.setBodyClass('snap-right-open');
     else self.setBodyClass('snap-closed');
 
     self.emit('animated', self.state);
@@ -158,10 +153,9 @@ Snap.prototype.easeTo = function(n) {
 
 Snap.prototype.setBodyClass = function(className) {
   if (!this.opts.addBodyClasses) return;
-  for (var i = 0; i < snapClasses.length; i++) {
-    $body.remove(snapClasses[i]);
-  }
-  $body.add(className);
+  $body
+    .removeMatching(/snap-/)
+    .add(className);
 };
 
 /**
@@ -174,9 +168,9 @@ Snap.prototype.setBodyClass = function(className) {
 Snap.prototype.opening = function(opening) {
   if (this.state.opening !== opening) {
     if (opening === 'left')
-      this.setBodyClass('snap-opening-left');
+      this.setBodyClass('snap-left-opening');
     else if(opening === 'right')
-      this.setBodyClass('snap-opening-right');
+      this.setBodyClass('snap-right-opening');
   }
   return opening;
 };
@@ -308,8 +302,9 @@ Snap.prototype.dragging = function(e) {
 
     if (!this.hasIntent) {
       var deg = this.angleOfDrag(thePageX, thePageY),
-          inRightRange = (deg >= 0 && deg <= this.slideIntent) || (deg <= 360 && deg > (360 - this.slideIntent)),
-          inLeftRange = (deg >= 180 && deg <= (180 + this.slideIntent)) || (deg <= 180 && deg >= (180 - this.slideIntent));
+          inRightRange = (deg >= 0 && deg <= this.opts.slideIntent) || (deg <= 360 && deg > (360 - this.opts.slideIntent)),
+          inLeftRange = (deg >= 180 && deg <= (180 + this.opts.slideIntent)) || (deg <= 180 && deg >= (180 - this.opts.slideIntent));
+
       if (!inLeftRange && !inRightRange) {
         this.hasIntent = false;
       } else {
@@ -440,6 +435,19 @@ Snap.prototype.endDrag = function(e) {
 };
 
 /**
+ * get drawers state
+ *
+ * @api public
+ */
+
+Snap.prototype.getState = function () {
+  var fromLeft = this.matrix(4);
+  if (fromLeft >= this.opts.maxPosition) return 'left';
+  else if (fromLeft <= this.opts.minPosition) return 'right';
+  return 'closed';
+};
+
+/**
  * open a drawer
  *
  *  @param  {String} side
@@ -497,15 +505,3 @@ Snap.prototype.expand = function(side) {
   this.easeTo(to);
 };
 
-/**
- * get drawers state
- *
- * @api public
- */
-
-Snap.prototype.getState = function () {
-  var fromLeft = this.matrix(4);
-  if (fromLeft >= this.opts.maxPosition) return 'left';
-  else if (fromLeft <= this.opts.minPosition) return 'right';
-  return 'closed';
-};

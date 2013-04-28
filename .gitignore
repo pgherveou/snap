@@ -166,3 +166,5 @@ pip-log.txt
 components
 build
 
+# node
+node_modules
