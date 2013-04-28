@@ -16,6 +16,7 @@ Forked from 1.6.x
 	- toggle(side)
 	- close()
 	- expand(side)
+	- getState()
 
 
 # Snap.js
