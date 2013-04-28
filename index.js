@@ -36,14 +36,16 @@ var $body = classes(document.body),
     },
     defaults = {
       addBodyClasses: true,
+      disableLeft: false,
+      disableRight: true,
+      tapToClose: true,
+      touchToDrag: true,
       resistance: 0.5,
       flickThreshold: 50,
       transitionSpeed: 0.3,
       easing: 'ease',
       maxPosition: 266,
       minPosition: -266,
-      tapToClose: true,
-      touchToDrag: true,
       slideIntent: 40, // degrees
       minDragDistance: 5
     },
@@ -69,21 +71,29 @@ function Snap(el, opts) {
   this.el = el;
   this.state = {};
   this.opts = {};
-
-  if (!opts) opts = {};
-  for (var opt in defaults) {
-    if (opts[opt] !== undefined)
-      this.opts[opt] = opts[opt];
-    else
-      this.opts[opt] = defaults[opt];
-  }
-
   this.$el = new Binder(this.el);
   this.startDrag = bind(this, this.startDrag);
   this.dragging = bind(this, this.dragging);
   this.endDrag = bind(this, this.endDrag);
-  this.bindDrag();
+  this.startListening(opts);
 }
+
+/**
+ * set options
+ *
+ * @param {Object} opts
+ * @api public
+ */
+
+Snap.prototype.setOpts = function(opts) {
+  if (!opts) opts = {};
+  for (var opt in defaults) {
+    if (opts[opt] !== undefined)
+      this.opts[opt] = opts[opt];
+    else if (this.opts[opt] === undefined)
+      this.opts[opt] = defaults[opt];
+  }
+};
 
 /**
  * Mixin emitter
@@ -179,32 +189,33 @@ Snap.prototype.opening = function(opening) {
  */
 
 Snap.prototype.translate = function(n) {
-  if((this.disableLeft && n > 0) || (this.disableRight && n < 0)) return;
+  if((this.opts.disableLeft && n > 0) || (this.opts.disableRight && n < 0)) return;
   translate(this.el, parseInt(n, 10), 0);
 };
 
 /**
  * Listen Drag events
  *
- * @api private
+ * @api public
  */
 
-Snap.prototype.bindDrag = function() {
+Snap.prototype.startListening = function(opts) {
+  this.stopListening();
+  this.setOpts(opts);
   this.translation = 0;
   this.easing = false;
-  this.unbindDrag()
   this.$el.on(evs.down, this.startDrag);
-  this.$el.on(evs.move, this.dragging);
+  if (this.opts.touchToDrag) this.$el.on(evs.move, this.dragging);
   this.$el.on(evs.up, this.endDrag);
 };
 
 /**
  * Stop listening to drag events
  *
- * @api private
+ * @api public
  */
 
-Snap.prototype.unbindDrag = function() {
+Snap.prototype.stopListening = function() {
   this.$el.off(evs.down, this.startDrag);
   this.$el.off(evs.move, this.dragging);
   this.$el.off(evs.up, this.endDrag);
