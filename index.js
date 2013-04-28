@@ -477,7 +477,7 @@ Snap.prototype.open = function(side) {
 Snap.prototype.toggle = function(side) {
   var state = this.getState();
   if (state === 'closed') {
-    this.open('side');
+    this.open(side);
   } else {
     this.close();
   }
