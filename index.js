@@ -202,7 +202,7 @@ Snap.prototype.startListening = function(opts) {
   this.setOpts(opts);
   this.translation = 0;
   this.easing = false;
-  if (disableRight && disableLeft) return;
+  if (this.opts.disableRight && this.opts.disableLeft) return;
   this.$el.on(evs.down, this.startDrag);
   if (this.opts.touchToDrag) this.$el.on(evs.move, this.dragging);
   this.$el.on(evs.up, this.endDrag);
