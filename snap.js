@@ -778,6 +778,27 @@ Binder.prototype.once = function(type, fn, capture) {
 };
 
 });
+require.register("pgherveou-angle/index.js", function(exports, require, module){
+/**
+ * calculate the angle between two points
+ * @param  {Number} x1
+ * @param  {Number} y1
+ * @param  {Number} x2
+ * @param  {Number} y2
+ *
+ * @return {Number}    angle in degree
+ */
+
+module.exports = function(x1, y1, x2, y2) {
+  var theta = Math.atan2(-(y1 - y2), (x1 - x2));
+  if (theta < 0) theta += 2 * Math.PI;
+
+  var degrees = Math.floor(theta * (180 / Math.PI) - 180);
+  if (degrees < 0 && degrees > -180) degrees = 360 - Math.abs(degrees);
+
+  return Math.abs(degrees);
+};
+});
 require.register("yields-prevent/index.js", function(exports, require, module){
 
 /**
@@ -887,10 +908,11 @@ require.register("snap/index.js", function(exports, require, module){
  * Module dependencies
  */
 
-var bind = require('bind'),
+var angle = require('angle'),
+    bind = require('bind'),
+    Binder  = require('event'),
     classes = require('classes'),
     Emitter = require('emitter'),
-    Binder  = require('event'),
     prevent = require('prevent'),
     prefix  = require('prefix'),
     translate = require('translate'),
@@ -925,6 +947,19 @@ var $body = classes(document.body),
     };
 
 /**
+ * helper function
+ * get event pageX or pageY position
+ *
+ * @param  {String} t type X or Y
+ * @param  {Event}  e
+ * @return {Number} pageX or Y value
+ */
+
+var page = function page(t, e){
+  return (hasTouch && e.touches.length && e.touches[0]) ? e.touches[0]['page'+t] : e['page'+t];
+};
+
+/**
  * Expose Snap
  */
 
@@ -933,6 +968,8 @@ module.exports = Snap;
 /**
  * Initialize a new `Snap`
  *
+ * @param {Element} el
+ * @param {Object} opts
  * @api public
  */
 
@@ -1065,6 +1102,7 @@ Snap.prototype.translate = function(n) {
 /**
  * Listen Drag events
  *
+ * @param  {Object} opts
  * @api public
  */
 
@@ -1073,6 +1111,7 @@ Snap.prototype.startListening = function(opts) {
   this.setOpts(opts);
   this.translation = 0;
   this.easing = false;
+  if (this.opts.disableRight && this.opts.disableLeft) return;
   this.$el.on(evs.down, this.startDrag);
   if (this.opts.touchToDrag) this.$el.on(evs.move, this.dragging);
   this.$el.on(evs.up, this.endDrag);
@@ -1088,30 +1127,6 @@ Snap.prototype.stopListening = function() {
   this.$el.off(evs.down, this.startDrag);
   this.$el.off(evs.move, this.dragging);
   this.$el.off(evs.up, this.endDrag);
-};
-
-/**
- * calculate angle of drag
- *
- * @param  {Number} x
- * @param  {Number} y
- * @return {Number}
- * @api @private
- */
-
-Snap.prototype.angleOfDrag = function(x, y) {
-  var degrees, theta;
-  // Calc Theta
-  theta = Math.atan2(-(this.startDragY - y), (this.startDragX - x));
-  if (theta < 0) {
-    theta += 2 * Math.PI;
-  }
-  // Calc Degrees
-  degrees = Math.floor(theta * (180 / Math.PI) - 180);
-  if (degrees < 0 && degrees > -180) {
-      degrees = 360 - Math.abs(degrees);
-  }
-  return Math.abs(degrees);
 };
 
 /**
@@ -1133,8 +1148,10 @@ Snap.prototype.startDrag = function(e) {
   this.isDragging = true;
   this.hasIntent = null;
   this.intentChecked = false;
-  this.startDragX = hasTouch ? e.touches[0].pageX : e.pageX;
-  this.startDragY = hasTouch ? e.touches[0].pageY : e.pageY;
+
+  this.startDragX = page('X', e)
+  this.startDragY = page('Y', e)
+
   this.dragWatchers = {
     current: 0,
     last: 0,
@@ -1166,8 +1183,8 @@ Snap.prototype.startDrag = function(e) {
 
 Snap.prototype.dragging = function(e) {
   if (!this.isDragging) return;
-  var thePageX = hasTouch ? e.touches[0].pageX : e.pageX,
-      thePageY = hasTouch ? e.touches[0].pageY : e.pageY,
+  var thePageX = page('X', e),
+      thePageY = page('Y', e),
       translated = this.translation,
       absoluteTranslation = this.position(),
       whileDragX = thePageX - this.startDragX,
@@ -1176,7 +1193,7 @@ Snap.prototype.dragging = function(e) {
       diff;
 
     if (!this.hasIntent) {
-      var deg = this.angleOfDrag(thePageX, thePageY),
+      var deg = angle(this.startDragX, this.startDragY, thePageX, thePageY),
           inRightRange = (deg >= 0 && deg <= this.opts.slideIntent) || (deg <= 360 && deg > (360 - this.opts.slideIntent)),
           inLeftRange = (deg >= 180 && deg <= (180 + this.opts.slideIntent)) || (deg <= 180 && deg >= (180 - this.opts.slideIntent));
 
@@ -1189,7 +1206,7 @@ Snap.prototype.dragging = function(e) {
     }
 
     // Has user met minimum drag distance?
-    if (this.minDragDistance >= Math.abs(thePageX-this.startDragX)  && !this.hasIntent)
+    if (this.opts.minDragDistance >= Math.abs(thePageX-this.startDragX)  && !this.hasIntent)
       return;
 
     prevent(e);
@@ -1306,7 +1323,7 @@ Snap.prototype.endDrag = function(e) {
       }
   }
   this.isDragging = false;
-  this.startDragX = hasTouch ? e.touches[0].pageX : e.pageX;
+  this.startDragX = page('X', e);
 };
 
 /**
@@ -1405,6 +1422,11 @@ require.alias("component-indexof/index.js", "component-classes/deps/indexof/inde
 
 require.alias("pgherveou-event/index.js", "snap/deps/event/index.js");
 require.alias("pgherveou-event/index.js", "event/index.js");
+
+require.alias("pgherveou-angle/index.js", "snap/deps/angle/index.js");
+require.alias("pgherveou-angle/index.js", "snap/deps/angle/index.js");
+require.alias("pgherveou-angle/index.js", "angle/index.js");
+require.alias("pgherveou-angle/index.js", "pgherveou-angle/index.js");
 
 require.alias("yields-prevent/index.js", "snap/deps/prevent/index.js");
 require.alias("yields-prevent/index.js", "prevent/index.js");

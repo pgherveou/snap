@@ -8,6 +8,7 @@
     "component/translate": "*",
     "component/classes": "*",
     "pgherveou/event": "*",
+    "pgherveou/angle": "*",
     "yields/prevent": "*",
     "pgherveou/prefix": "*",
     "pgherveou/transitionend": "*"

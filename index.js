@@ -13,10 +13,11 @@
  * Module dependencies
  */
 
-var bind = require('bind'),
+var angle = require('angle'),
+    bind = require('bind'),
+    Binder  = require('event'),
     classes = require('classes'),
     Emitter = require('emitter'),
-    Binder  = require('event'),
     prevent = require('prevent'),
     prefix  = require('prefix'),
     translate = require('translate'),
@@ -49,6 +50,19 @@ var $body = classes(document.body),
       slideIntent: 40, // degrees
       minDragDistance: 5
     };
+
+/**
+ * helper function
+ * get event pageX or pageY position
+ *
+ * @param  {String} t type X or Y
+ * @param  {Event}  e
+ * @return {Number} pageX or Y value
+ */
+
+var page = function page(t, e){
+  return (hasTouch && e.touches.length && e.touches[0]) ? e.touches[0]['page'+t] : e['page'+t];
+};
 
 /**
  * Expose Snap
@@ -221,30 +235,6 @@ Snap.prototype.stopListening = function() {
 };
 
 /**
- * calculate angle of drag
- *
- * @param  {Number} x
- * @param  {Number} y
- * @return {Number}
- * @api @private
- */
-
-Snap.prototype.angleOfDrag = function(x, y) {
-  var degrees, theta;
-  // Calc Theta
-  theta = Math.atan2(-(this.startDragY - y), (this.startDragX - x));
-  if (theta < 0) {
-    theta += 2 * Math.PI;
-  }
-  // Calc Degrees
-  degrees = Math.floor(theta * (180 / Math.PI) - 180);
-  if (degrees < 0 && degrees > -180) {
-      degrees = 360 - Math.abs(degrees);
-  }
-  return Math.abs(degrees);
-};
-
-/**
  * Start drag
  * @param  {Event} e
  *
@@ -264,8 +254,8 @@ Snap.prototype.startDrag = function(e) {
   this.hasIntent = null;
   this.intentChecked = false;
 
-  this.startDragX = (hasTouch && e.touches.length && e.touches[0]) ? e.touches[0].pageX : e.pageX;
-  this.startDragY = (hasTouch && e.touches.length && e.touches[0]) ? e.touches[0].pageY : e.pageY;
+  this.startDragX = page('X', e);
+  this.startDragY = page('Y', e);
 
   this.dragWatchers = {
     current: 0,
@@ -298,8 +288,8 @@ Snap.prototype.startDrag = function(e) {
 
 Snap.prototype.dragging = function(e) {
   if (!this.isDragging) return;
-  var thePageX = hasTouch ? e.touches[0].pageX : e.pageX,
-      thePageY = hasTouch ? e.touches[0].pageY : e.pageY,
+  var thePageX = page('X', e),
+      thePageY = page('Y', e),
       translated = this.translation,
       absoluteTranslation = this.position(),
       whileDragX = thePageX - this.startDragX,
@@ -308,7 +298,7 @@ Snap.prototype.dragging = function(e) {
       diff;
 
     if (!this.hasIntent) {
-      var deg = this.angleOfDrag(thePageX, thePageY),
+      var deg = angle(this.startDragX, this.startDragY, thePageX, thePageY),
           inRightRange = (deg >= 0 && deg <= this.opts.slideIntent) || (deg <= 360 && deg > (360 - this.opts.slideIntent)),
           inLeftRange = (deg >= 180 && deg <= (180 + this.opts.slideIntent)) || (deg <= 180 && deg >= (180 - this.opts.slideIntent));
 
@@ -438,7 +428,7 @@ Snap.prototype.endDrag = function(e) {
       }
   }
   this.isDragging = false;
-  this.startDragX = (hasTouch && e.touches.length && e.touches[0]) ? e.touches[0].pageX : e.pageX;
+  this.startDragX = page('X', e);
 };
 
 /**
