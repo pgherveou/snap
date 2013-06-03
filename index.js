@@ -310,9 +310,11 @@ Snap.prototype.dragging = function(e) {
       this.intentChecked = true;
     }
 
+    // angle in range?
+    if (!this.hasIntent) return;
+
     // Has user met minimum drag distance?
-    if (this.opts.minDragDistance >= Math.abs(thePageX-this.startDragX)  && !this.hasIntent)
-      return;
+    if (this.opts.minDragDistance >= Math.abs(thePageX-this.startDragX)) return;
 
     prevent(e);
     this.emit('drag', this.state);
