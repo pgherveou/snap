@@ -25,8 +25,7 @@ var angle = require('angle'),
 
 // module globals
 
-var $body = classes(document.body),
-    transform = prefix('transform'),
+var transform = prefix('transform'),
     transition = prefix('transition'),
     hasTouch = 'ontouchstart' in window,
     evs = {
@@ -36,7 +35,6 @@ var $body = classes(document.body),
       out: hasTouch ? 'touchcancel' : 'mouseout'
     },
     defaults = {
-      addBodyClasses: true,
       disableLeft: false,
       disableRight: false,
       tapToClose: true,
@@ -84,6 +82,7 @@ function Snap(el, opts) {
   this.state = {};
   this.opts = {};
   this.$el = new Binder(this.el);
+  this.$parent = classes(this.el.parentNode),
   this.startDrag = bind(this, this.startDrag);
   this.dragging = bind(this, this.dragging);
   this.endDrag = bind(this, this.endDrag);
@@ -148,11 +147,11 @@ Snap.prototype.easeTo = function(n) {
     self.translation = n;
     self.easing = false;
 
-    if (n == window.innerWidth) self.setBodyClass('snap-left-expand');
-    else if (n >= self.opts.maxPosition) self.setBodyClass('snap-left-open');
-    else if (n == -window.innerWidth) self.setBodyClass('snap-right-expand');
-    else if (n <= self.opts.minPosition) self.setBodyClass('snap-right-open');
-    else self.setBodyClass('snap-closed');
+    if (n == window.innerWidth) self.setParentClass('snap-left-expand');
+    else if (n >= self.opts.maxPosition) self.setParentClass('snap-left-open');
+    else if (n == -window.innerWidth) self.setParentClass('snap-right-expand');
+    else if (n <= self.opts.minPosition) self.setParentClass('snap-right-open');
+    else self.setParentClass('snap-closed');
 
     self.emit('animated', self.state);
   };
@@ -163,15 +162,14 @@ Snap.prototype.easeTo = function(n) {
 };
 
 /**
- * set body class
+ * set parent class
  *
  * @param {String} className
  * @private
  */
 
-Snap.prototype.setBodyClass = function(className) {
-  if (!this.opts.addBodyClasses) return;
-  $body
+Snap.prototype.setParentClass = function(className) {
+  this.$parent
     .removeMatching(/snap-/)
     .add(className);
 };
@@ -186,9 +184,9 @@ Snap.prototype.setBodyClass = function(className) {
 Snap.prototype.opening = function(opening) {
   if (this.state.opening !== opening) {
     if (opening === 'left')
-      this.setBodyClass('snap-left-opening');
+      this.setParentClass('snap-left-opening');
     else if(opening === 'right')
-      this.setBodyClass('snap-right-opening');
+      this.setParentClass('snap-right-opening');
   }
   return opening;
 };

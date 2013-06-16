@@ -916,8 +916,7 @@ var angle = require('angle'),
 
 // module globals
 
-var $body = classes(document.body),
-    transform = prefix('transform'),
+var transform = prefix('transform'),
     transition = prefix('transition'),
     hasTouch = 'ontouchstart' in window,
     evs = {
@@ -927,7 +926,6 @@ var $body = classes(document.body),
       out: hasTouch ? 'touchcancel' : 'mouseout'
     },
     defaults = {
-      addBodyClasses: true,
       disableLeft: false,
       disableRight: false,
       tapToClose: true,
@@ -955,24 +953,6 @@ var page = function page(t, e){
   return (hasTouch && e.touches.length && e.touches[0]) ? e.touches[0]['page'+t] : e['page'+t];
 };
 
-/**
- * helper function
- * check recursively if parent element has the specified attr
- * @param  {Element} el
- * @param  {String} attr
- * @return {[Element]}
- */
-
-var parentUntil = function parentUntil(el, attr) {
-  while (el.parentNode) {
-    if (el.getAttribute && el.getAttribute(attr))
-      return el;
-    else if(el === attr)
-      return el;
-    el = el.parentNode;
-  }
-  return null;
-};
 
 /**
  * Expose Snap
@@ -993,6 +973,7 @@ function Snap(el, opts) {
   this.state = {};
   this.opts = {};
   this.$el = new Binder(this.el);
+  this.$parent = classes(this.el.parentNode),
   this.startDrag = bind(this, this.startDrag);
   this.dragging = bind(this, this.dragging);
   this.endDrag = bind(this, this.endDrag);
@@ -1057,11 +1038,11 @@ Snap.prototype.easeTo = function(n) {
     self.translation = n;
     self.easing = false;
 
-    if (n == window.innerWidth) self.setBodyClass('snap-left-expand');
-    else if (n >= self.opts.maxPosition) self.setBodyClass('snap-left-open');
-    else if (n == -window.innerWidth) self.setBodyClass('snap-right-expand');
-    else if (n <= self.opts.minPosition) self.setBodyClass('snap-right-open');
-    else self.setBodyClass('snap-closed');
+    if (n == window.innerWidth) self.setParentClass('snap-left-expand');
+    else if (n >= self.opts.maxPosition) self.setParentClass('snap-left-open');
+    else if (n == -window.innerWidth) self.setParentClass('snap-right-expand');
+    else if (n <= self.opts.minPosition) self.setParentClass('snap-right-open');
+    else self.setParentClass('snap-closed');
 
     self.emit('animated', self.state);
   };
@@ -1072,15 +1053,14 @@ Snap.prototype.easeTo = function(n) {
 };
 
 /**
- * set body class
+ * set parent class
  *
  * @param {String} className
  * @private
  */
 
-Snap.prototype.setBodyClass = function(className) {
-  if (!this.opts.addBodyClasses) return;
-  $body
+Snap.prototype.setParentClass = function(className) {
+  this.$parent
     .removeMatching(/snap-/)
     .add(className);
 };
@@ -1095,9 +1075,9 @@ Snap.prototype.setBodyClass = function(className) {
 Snap.prototype.opening = function(opening) {
   if (this.state.opening !== opening) {
     if (opening === 'left')
-      this.setBodyClass('snap-left-opening');
+      this.setParentClass('snap-left-opening');
     else if(opening === 'right')
-      this.setBodyClass('snap-right-opening');
+      this.setParentClass('snap-right-opening');
   }
   return opening;
 };
@@ -1145,6 +1125,23 @@ Snap.prototype.stopListening = function() {
 };
 
 /**
+ * checki if user can start a drag
+ * @param  {Element} el
+ * @return {[Element]}
+ *
+ * @api private
+ */
+
+Snap.prototype.canDrag = function(el) {
+  while (el.parentNode) {
+    if (el === this.el) return null;
+    if (el.getAttribute && el.getAttribute('data-snap-ignore')) return el;
+    el = el.parentNode;
+  }
+  return null;
+};
+
+/**
  * Start drag
  * @param  {Event} e
  *
@@ -1155,7 +1152,7 @@ Snap.prototype.startDrag = function(e) {
   // No drag on ignored elements
   var target = e.target ? e.target : e.srcElement;
 
-  if (parentUntil(target, 'data-snap-ignore'))
+  if (this.canDrag(target))
     return this.emit('ignore');
 
   this.emit('start', this.state);
