@@ -362,7 +362,7 @@ Snap.prototype.dragging = function(e) {
             towards: this.dragWatchers.state,
             hyperExtending: this.opts.maxPosition < absoluteTranslation,
             halfway: absoluteTranslation > (this.opts.maxPosition / 2),
-            flick: Math.abs(this.dragWatchers.current - this.dragWatchers.hold) > this.flickThreshold,
+            flick: Math.abs(this.dragWatchers.current - this.dragWatchers.hold) > this.opts.flickThreshold,
             translation: {
                 absolute: absoluteTranslation,
                 relative: whileDragX,
@@ -381,7 +381,7 @@ Snap.prototype.dragging = function(e) {
             towards: this.dragWatchers.state,
             hyperExtending: this.opts.minPosition > absoluteTranslation,
             halfway: absoluteTranslation < (this.opts.minPosition / 2),
-            flick: Math.abs(this.dragWatchers.current - this.dragWatchers.hold) > this.flickThreshold,
+            flick: Math.abs(this.dragWatchers.current - this.dragWatchers.hold) > this.opts.flickThreshold,
             translation: {
                 absolute: absoluteTranslation,
                 relative: whileDragX,
