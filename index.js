@@ -48,7 +48,7 @@ var $body = classes(document.body),
       maxPosition: 266,
       minPosition: -266,
       slideIntent: 40, // degrees
-      minDragDistance: 5
+      minDragDistance: 20
     };
 
 /**
