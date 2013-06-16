@@ -143,17 +143,19 @@ Snap.prototype.easeTo = function(n) {
   this.el.style[transition] = 'all ' + this.opts.transitionSpeed + 's ' + this.opts.easing;
 
   var cb = function() {
+    var status;
     self.el.style[transition] = '';
     self.translation = n;
     self.easing = false;
 
-    if (n == window.innerWidth) self.setParentClass('snap-left-expand');
-    else if (n >= self.opts.maxPosition) self.setParentClass('snap-left-open');
-    else if (n == -window.innerWidth) self.setParentClass('snap-right-expand');
-    else if (n <= self.opts.minPosition) self.setParentClass('snap-right-open');
-    else self.setParentClass('snap-closed');
+    if (n == window.innerWidth) status = 'left-expand';
+    else if (n >= self.opts.maxPosition) status = 'left-open';
+    else if (n == -window.innerWidth) status = 'right-expand';
+    else if (n <= self.opts.minPosition) status = 'right-open';
+    else status = 'closed';
 
-    self.emit('animated', self.state);
+    self.setParentClass('snap-'+ status);
+    self.emit('toggle', status);
   };
 
   this.$el.once(transitionend, cb);
