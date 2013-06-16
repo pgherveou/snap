@@ -939,7 +939,7 @@ var $body = classes(document.body),
       maxPosition: 266,
       minPosition: -266,
       slideIntent: 40, // degrees
-      minDragDistance: 30
+      minDragDistance: 20
     };
 
 /**
@@ -953,6 +953,25 @@ var $body = classes(document.body),
 
 var page = function page(t, e){
   return (hasTouch && e.touches.length && e.touches[0]) ? e.touches[0]['page'+t] : e['page'+t];
+};
+
+/**
+ * helper function
+ * check recursively if parent element has the specified attr
+ * @param  {Element} el
+ * @param  {String} attr
+ * @return {[Element]}
+ */
+
+var parentUntil = function parentUntil(el, attr) {
+  while (el.parentNode) {
+    if (el.getAttribute && el.getAttribute(attr))
+      return el;
+    else if(el === attr)
+      return el;
+    el = el.parentNode;
+  }
+  return null;
 };
 
 /**
@@ -1134,10 +1153,10 @@ Snap.prototype.stopListening = function() {
 
 Snap.prototype.startDrag = function(e) {
   // No drag on ignored elements
-  var src = e.target ? e.target : e.srcElement;
-  if (src.dataset && src.dataset.snapIgnore === "true") {
+  var target = e.target ? e.target : e.srcElement;
+
+  if (parentUntil(target, 'data-snap-ignore'))
     return this.emit('ignore');
-  }
 
   this.emit('start', this.state);
   this.el.style[transition] = '';
