@@ -64,24 +64,6 @@ var page = function page(t, e){
   return (hasTouch && e.touches.length && e.touches[0]) ? e.touches[0]['page'+t] : e['page'+t];
 };
 
-/**
- * helper function
- * check recursively if parent element has the specified attr
- * @param  {Element} el
- * @param  {String} attr
- * @return {[Element]}
- */
-
-var parentUntil = function parentUntil(el, attr) {
-  while (el.parentNode) {
-    if (el.getAttribute && el.getAttribute(attr))
-      return el;
-    else if(el === attr)
-      return el;
-    el = el.parentNode;
-  }
-  return null;
-};
 
 /**
  * Expose Snap
@@ -254,6 +236,23 @@ Snap.prototype.stopListening = function() {
 };
 
 /**
+ * checki if user can start a drag
+ * @param  {Element} el
+ * @return {[Element]}
+ *
+ * @api private
+ */
+
+Snap.prototype.canDrag = function(el) {
+  while (el.parentNode) {
+    if (el === this.el) return null;
+    if (el.getAttribute && el.getAttribute('data-snap-ignore')) return el;
+    el = el.parentNode;
+  }
+  return null;
+};
+
+/**
  * Start drag
  * @param  {Event} e
  *
@@ -264,7 +263,7 @@ Snap.prototype.startDrag = function(e) {
   // No drag on ignored elements
   var target = e.target ? e.target : e.srcElement;
 
-  if (parentUntil(target, 'data-snap-ignore'))
+  if (this.canDrag(target))
     return this.emit('ignore');
 
   this.emit('start', this.state);
