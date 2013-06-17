@@ -87,6 +87,7 @@ function Snap(el, opts) {
   this.dragging = bind(this, this.dragging);
   this.endDrag = bind(this, this.endDrag);
   this.startListening(opts);
+  this.translate(0);
 }
 
 /**
