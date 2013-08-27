@@ -33,7 +33,7 @@
                             <li><a href="ratchet/template.html">Ratchet</a></li>
                         </ul>
                         <div>
-                            <p>Data attributes can be used to define elements that you want to have prevent sliding of a pane (maybe a photo slider, etc)</p>
+                            <p>The Default demo shows basic Snap.js functionality</p>
                             <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nulla non erat ac leo ultrices blandit sed vel risus. Pellentesque facilisis blandit auctor. Maecenas vestibulum vulputate tincidunt. Mauris nec quam libero. Fusce eget ligula non leo varius condimentum quis ac elit. Donec id urna ut neque semper ultrices. Proin ut suscipit felis. Nullam neque felis, ullamcorper scelerisque volutpat vel, vehicula vehicula neque. Aenean scelerisque elit ac erat sagittis ullamcorper.</p>
                         </div>
                     </div>
@@ -45,19 +45,15 @@
                 <div class="relative tall">
                     <div id="toolbar" class="absolute">
                         <a href="#" id="open-left"></a>
-                        <span>No Drag</span>
+                        <span>Default</span>
                     </div>
-                    <div id="no-drag" data-snap-ignore="true">No Drag</div>
                 </div>
             </div>
         </div>
-
         <script type="text/javascript" src="../../build/build.js"></script>
         <script type="text/javascript">
             var Snap = require('snap')
-              , snapper = new Snap(document.getElementById('content'), {
-                touchToDrag: false
-            });
+              , snapper = new Snap(document.getElementById('content'), {hyperextensible: false});
 
         </script>
         <script type="text/javascript" src="../assets/demo.js"></script>

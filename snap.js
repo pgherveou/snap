@@ -930,6 +930,7 @@ var transform = prefix('transform'),
       disableRight: false,
       tapToClose: true,
       touchToDrag: true,
+      hyperextensible: true,
       resistance: 0.5,
       flickThreshold: 50,
       transitionSpeed: 0.3,
@@ -978,6 +979,7 @@ function Snap(el, opts) {
   this.dragging = bind(this, this.dragging);
   this.endDrag = bind(this, this.endDrag);
   this.startListening(opts);
+  this.translate(0);
 }
 
 /**
@@ -1034,17 +1036,19 @@ Snap.prototype.easeTo = function(n) {
   this.el.style[transition] = 'all ' + this.opts.transitionSpeed + 's ' + this.opts.easing;
 
   var cb = function() {
+    var status;
     self.el.style[transition] = '';
     self.translation = n;
     self.easing = false;
 
-    if (n == window.innerWidth) self.setParentClass('snap-left-expand');
-    else if (n >= self.opts.maxPosition) self.setParentClass('snap-left-open');
-    else if (n == -window.innerWidth) self.setParentClass('snap-right-expand');
-    else if (n <= self.opts.minPosition) self.setParentClass('snap-right-open');
-    else self.setParentClass('snap-closed');
+    if (n == window.innerWidth) status = 'left-expand';
+    else if (n >= self.opts.maxPosition) status = 'left-open';
+    else if (n == -window.innerWidth) status = 'right-expand';
+    else if (n <= self.opts.minPosition) status = 'right-open';
+    else status = 'closed';
 
-    self.emit('animated', self.state);
+    self.setParentClass('snap-'+ status);
+    self.emit('toggle', status);
   };
 
   this.$el.once(transitionend, cb);
@@ -1091,6 +1095,14 @@ Snap.prototype.opening = function(opening) {
 
 Snap.prototype.translate = function(n) {
   if((this.opts.disableLeft && n > 0) || (this.opts.disableRight && n < 0)) return;
+
+  if (!this.opts.hyperextensible) {
+    if (n > this.opts.maxPosition)
+      n = this.opts.maxPosition;
+    else if(n < this.opts.minPosition)
+      n = this.opts.minPosition;
+  }
+
   translate(this.el, parseInt(n, 10), 0);
 };
 
@@ -1253,7 +1265,7 @@ Snap.prototype.dragging = function(e) {
             towards: this.dragWatchers.state,
             hyperExtending: this.opts.maxPosition < absoluteTranslation,
             halfway: absoluteTranslation > (this.opts.maxPosition / 2),
-            flick: Math.abs(this.dragWatchers.current - this.dragWatchers.hold) > this.flickThreshold,
+            flick: Math.abs(this.dragWatchers.current - this.dragWatchers.hold) > this.opts.flickThreshold,
             translation: {
                 absolute: absoluteTranslation,
                 relative: whileDragX,
@@ -1272,7 +1284,7 @@ Snap.prototype.dragging = function(e) {
             towards: this.dragWatchers.state,
             hyperExtending: this.opts.minPosition > absoluteTranslation,
             halfway: absoluteTranslation < (this.opts.minPosition / 2),
-            flick: Math.abs(this.dragWatchers.current - this.dragWatchers.hold) > this.flickThreshold,
+            flick: Math.abs(this.dragWatchers.current - this.dragWatchers.hold) > this.opts.flickThreshold,
             translation: {
                 absolute: absoluteTranslation,
                 relative: whileDragX,
@@ -1413,6 +1425,16 @@ Snap.prototype.expand = function(side) {
 
 
 });
+
+
+
+
+
+
+
+
+
+
 require.alias("component-emitter/index.js", "snap/deps/emitter/index.js");
 require.alias("component-emitter/index.js", "emitter/index.js");
 require.alias("component-indexof/index.js", "component-emitter/deps/indexof/index.js");
@@ -1429,7 +1451,6 @@ require.alias("component-transform-property/index.js", "component-has-translate3
 require.alias("component-transform-property/index.js", "component-translate/deps/transform-property/index.js");
 
 require.alias("component-translate/index.js", "component-translate/index.js");
-
 require.alias("component-classes/index.js", "snap/deps/classes/index.js");
 require.alias("component-classes/index.js", "classes/index.js");
 require.alias("component-indexof/index.js", "component-classes/deps/indexof/index.js");
@@ -1441,7 +1462,6 @@ require.alias("pgherveou-angle/index.js", "snap/deps/angle/index.js");
 require.alias("pgherveou-angle/index.js", "snap/deps/angle/index.js");
 require.alias("pgherveou-angle/index.js", "angle/index.js");
 require.alias("pgherveou-angle/index.js", "pgherveou-angle/index.js");
-
 require.alias("yields-prevent/index.js", "snap/deps/prevent/index.js");
 require.alias("yields-prevent/index.js", "prevent/index.js");
 
@@ -1449,19 +1469,14 @@ require.alias("pgherveou-prefix/index.js", "snap/deps/prefix/index.js");
 require.alias("pgherveou-prefix/index.js", "snap/deps/prefix/index.js");
 require.alias("pgherveou-prefix/index.js", "prefix/index.js");
 require.alias("pgherveou-prefix/index.js", "pgherveou-prefix/index.js");
-
 require.alias("pgherveou-transitionend/index.js", "snap/deps/transitionend/index.js");
 require.alias("pgherveou-transitionend/index.js", "snap/deps/transitionend/index.js");
 require.alias("pgherveou-transitionend/index.js", "transitionend/index.js");
 require.alias("pgherveou-prefix/index.js", "pgherveou-transitionend/deps/prefix/index.js");
 require.alias("pgherveou-prefix/index.js", "pgherveou-transitionend/deps/prefix/index.js");
 require.alias("pgherveou-prefix/index.js", "pgherveou-prefix/index.js");
-
 require.alias("pgherveou-transitionend/index.js", "pgherveou-transitionend/index.js");
-
-require.alias("snap/index.js", "snap/index.js");
-
-if (typeof exports == "object") {
+require.alias("snap/index.js", "snap/index.js");if (typeof exports == "object") {
   module.exports = require("snap");
 } else if (typeof define == "function" && define.amd) {
   define(function(){ return require("snap"); });

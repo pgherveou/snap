@@ -2,6 +2,7 @@
   "name": "snap",
   "repo": "pgherveou/snap",
   "description": "snap.js component",
+  "version": "0.0.1",
   "dependencies": {
     "component/emitter": "*",
     "component/bind": "*",

@@ -39,6 +39,7 @@ var transform = prefix('transform'),
       disableRight: false,
       tapToClose: true,
       touchToDrag: true,
+      hyperextensible: true,
       resistance: 0.5,
       flickThreshold: 50,
       transitionSpeed: 0.3,
@@ -203,6 +204,14 @@ Snap.prototype.opening = function(opening) {
 
 Snap.prototype.translate = function(n) {
   if((this.opts.disableLeft && n > 0) || (this.opts.disableRight && n < 0)) return;
+
+  if (!this.opts.hyperextensible) {
+    if (n > this.opts.maxPosition)
+      n = this.opts.maxPosition;
+    else if(n < this.opts.minPosition)
+      n = this.opts.minPosition;
+  }
+
   translate(this.el, parseInt(n, 10), 0);
 };
 
