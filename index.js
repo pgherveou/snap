@@ -358,8 +358,8 @@ Snap.prototype.dragging = function(e) {
 
   prevent(e);
   this.emit('drag', this.state);
-
   this.drag.current = thePageX;
+
   // Determine which direction we are going
   if (this.drag.last > thePageX) {
     if (this.drag.state !== 'left') {
