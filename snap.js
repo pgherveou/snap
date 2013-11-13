@@ -27,10 +27,14 @@ function require(path, parent, orig) {
   // perform real require()
   // by invoking the module's
   // registered function
-  if (!module.exports) {
-    module.exports = {};
-    module.client = module.component = true;
-    module.call(this, module.exports, require.relative(resolved), module);
+  if (!module._resolving && !module.exports) {
+    var mod = {};
+    mod.exports = {};
+    mod.client = mod.component = true;
+    module._resolving = true;
+    module.call(this, mod.exports, require.relative(resolved), mod);
+    delete module._resolving;
+    module.exports = mod.exports;
   }
 
   return module.exports;
@@ -373,6 +377,361 @@ Emitter.prototype.hasListeners = function(event){
 };
 
 });
+require.register("component-event/index.js", function(exports, require, module){
+var bind = (window.addEventListener !== undefined) ? 'addEventListener' : 'attachEvent',
+    unbind = (window.removeEventListener !== undefined) ? 'removeEventListener' : 'detachEvent',
+    prefix = (bind !== 'addEventListener') ? 'on' : '';
+
+/**
+ * Bind `el` event `type` to `fn`.
+ *
+ * @param {Element} el
+ * @param {String} type
+ * @param {Function} fn
+ * @param {Boolean} capture
+ * @return {Function}
+ * @api public
+ */
+
+exports.bind = function(el, type, fn, capture){
+  el[bind](prefix + type, fn, capture || false);
+
+  return fn;
+};
+
+/**
+ * Unbind `el` event `type`'s callback `fn`.
+ *
+ * @param {Element} el
+ * @param {String} type
+ * @param {Function} fn
+ * @param {Boolean} capture
+ * @return {Function}
+ * @api public
+ */
+
+exports.unbind = function(el, type, fn, capture){
+  el[unbind](prefix + type, fn, capture || false);
+
+  return fn;
+};
+});
+require.register("component-query/index.js", function(exports, require, module){
+function one(selector, el) {
+  return el.querySelector(selector);
+}
+
+exports = module.exports = function(selector, el){
+  el = el || document;
+  return one(selector, el);
+};
+
+exports.all = function(selector, el){
+  el = el || document;
+  return el.querySelectorAll(selector);
+};
+
+exports.engine = function(obj){
+  if (!obj.one) throw new Error('.one callback required');
+  if (!obj.all) throw new Error('.all callback required');
+  one = obj.one;
+  exports.all = obj.all;
+  return exports;
+};
+
+});
+require.register("component-matches-selector/index.js", function(exports, require, module){
+/**
+ * Module dependencies.
+ */
+
+var query = require('query');
+
+/**
+ * Element prototype.
+ */
+
+var proto = Element.prototype;
+
+/**
+ * Vendor function.
+ */
+
+var vendor = proto.matches
+  || proto.webkitMatchesSelector
+  || proto.mozMatchesSelector
+  || proto.msMatchesSelector
+  || proto.oMatchesSelector;
+
+/**
+ * Expose `match()`.
+ */
+
+module.exports = match;
+
+/**
+ * Match `el` to `selector`.
+ *
+ * @param {Element} el
+ * @param {String} selector
+ * @return {Boolean}
+ * @api public
+ */
+
+function match(el, selector) {
+  if (vendor) return vendor.call(el, selector);
+  var nodes = query.all(selector, el.parentNode);
+  for (var i = 0; i < nodes.length; ++i) {
+    if (nodes[i] == el) return true;
+  }
+  return false;
+}
+
+});
+require.register("discore-closest/index.js", function(exports, require, module){
+var matches = require('matches-selector')
+
+module.exports = function (element, selector, checkYoSelf, root) {
+  element = checkYoSelf ? element : element.parentNode
+  root = root || document
+
+  do {
+    if (matches(element, selector))
+      return element
+    // After `matches` on the edge case that
+    // the selector matches the root
+    // (when the root is not the document)
+    if (element === root)
+      return
+    // Make sure `element !== document`
+    // otherwise we get an illegal invocation
+  } while ((element = element.parentNode) && element !== document)
+}
+});
+require.register("component-delegate/index.js", function(exports, require, module){
+/**
+ * Module dependencies.
+ */
+
+var closest = require('closest')
+  , event = require('event');
+
+/**
+ * Delegate event `type` to `selector`
+ * and invoke `fn(e)`. A callback function
+ * is returned which may be passed to `.unbind()`.
+ *
+ * @param {Element} el
+ * @param {String} selector
+ * @param {String} type
+ * @param {Function} fn
+ * @param {Boolean} capture
+ * @return {Function}
+ * @api public
+ */
+
+exports.bind = function(el, selector, type, fn, capture){
+  return event.bind(el, type, function(e){
+    var target = e.target || e.srcElement;
+    e.delegateTarget = closest(target, selector, true, el);
+    if (e.delegateTarget) fn.call(el, e);
+  }, capture);
+};
+
+/**
+ * Unbind event `type`'s callback `fn`.
+ *
+ * @param {Element} el
+ * @param {String} type
+ * @param {Function} fn
+ * @param {Boolean} capture
+ * @api public
+ */
+
+exports.unbind = function(el, type, fn, capture){
+  event.unbind(el, type, fn, capture);
+};
+
+});
+require.register("component-events/index.js", function(exports, require, module){
+
+/**
+ * Module dependencies.
+ */
+
+var events = require('event');
+var delegate = require('delegate');
+
+/**
+ * Expose `Events`.
+ */
+
+module.exports = Events;
+
+/**
+ * Initialize an `Events` with the given
+ * `el` object which events will be bound to,
+ * and the `obj` which will receive method calls.
+ *
+ * @param {Object} el
+ * @param {Object} obj
+ * @api public
+ */
+
+function Events(el, obj) {
+  if (!(this instanceof Events)) return new Events(el, obj);
+  if (!el) throw new Error('element required');
+  if (!obj) throw new Error('object required');
+  this.el = el;
+  this.obj = obj;
+  this._events = {};
+}
+
+/**
+ * Subscription helper.
+ */
+
+Events.prototype.sub = function(event, method, cb){
+  this._events[event] = this._events[event] || {};
+  this._events[event][method] = cb;
+};
+
+/**
+ * Bind to `event` with optional `method` name.
+ * When `method` is undefined it becomes `event`
+ * with the "on" prefix.
+ *
+ * Examples:
+ *
+ *  Direct event handling:
+ *
+ *    events.bind('click') // implies "onclick"
+ *    events.bind('click', 'remove')
+ *    events.bind('click', 'sort', 'asc')
+ *
+ *  Delegated event handling:
+ *
+ *    events.bind('click li > a')
+ *    events.bind('click li > a', 'remove')
+ *    events.bind('click a.sort-ascending', 'sort', 'asc')
+ *    events.bind('click a.sort-descending', 'sort', 'desc')
+ *
+ * @param {String} event
+ * @param {String|function} [method]
+ * @return {Function} callback
+ * @api public
+ */
+
+Events.prototype.bind = function(event, method){
+  var e = parse(event);
+  var el = this.el;
+  var obj = this.obj;
+  var name = e.name;
+  var method = method || 'on' + name;
+  var args = [].slice.call(arguments, 2);
+
+  // callback
+  function cb(){
+    var a = [].slice.call(arguments).concat(args);
+    obj[method].apply(obj, a);
+  }
+
+  // bind
+  if (e.selector) {
+    cb = delegate.bind(el, e.selector, name, cb);
+  } else {
+    events.bind(el, name, cb);
+  }
+
+  // subscription for unbinding
+  this.sub(name, method, cb);
+
+  return cb;
+};
+
+/**
+ * Unbind a single binding, all bindings for `event`,
+ * or all bindings within the manager.
+ *
+ * Examples:
+ *
+ *  Unbind direct handlers:
+ *
+ *     events.unbind('click', 'remove')
+ *     events.unbind('click')
+ *     events.unbind()
+ *
+ * Unbind delegate handlers:
+ *
+ *     events.unbind('click', 'remove')
+ *     events.unbind('click')
+ *     events.unbind()
+ *
+ * @param {String|Function} [event]
+ * @param {String|Function} [method]
+ * @api public
+ */
+
+Events.prototype.unbind = function(event, method){
+  if (0 == arguments.length) return this.unbindAll();
+  if (1 == arguments.length) return this.unbindAllOf(event);
+
+  // no bindings for this event
+  var bindings = this._events[event];
+  if (!bindings) return;
+
+  // no bindings for this method
+  var cb = bindings[method];
+  if (!cb) return;
+
+  events.unbind(this.el, event, cb);
+};
+
+/**
+ * Unbind all events.
+ *
+ * @api private
+ */
+
+Events.prototype.unbindAll = function(){
+  for (var event in this._events) {
+    this.unbindAllOf(event);
+  }
+};
+
+/**
+ * Unbind all events for `event`.
+ *
+ * @param {String} event
+ * @api private
+ */
+
+Events.prototype.unbindAllOf = function(event){
+  var bindings = this._events[event];
+  if (!bindings) return;
+
+  for (var method in bindings) {
+    this.unbind(event, method);
+  }
+};
+
+/**
+ * Parse `event`.
+ *
+ * @param {String} event
+ * @return {Object}
+ * @api private
+ */
+
+function parse(event) {
+  var parts = event.split(/ +/);
+  return {
+    name: parts.shift(),
+    selector: parts.join(' ')
+  }
+}
+
+});
 require.register("component-bind/index.js", function(exports, require, module){
 
 /**
@@ -649,131 +1008,6 @@ ClassList.prototype.contains = function(name){
 };
 
 });
-require.register("pgherveou-event/index.js", function(exports, require, module){
-/**
- * Initialize a new `Binder`
- *
- * @api public
- */
-
-function Binder(el) {
- if (!(this instanceof Binder))
-    return new Binder(el);
-  this.el = el;
-}
-
-/**
- * Expose binder
- */
-
-module.exports = Binder;
-
-/**
- * Bind `el` event `type` to `fn`.
- *
- * @param {Element} el
- * @param {String} type
- * @param {Function} fn
- * @param {Boolean} capture
- * @return {Function}
- * @api public
- */
-
-Binder.bind = function(el, type, fn, capture){
-  if (el.addEventListener) {
-    el.addEventListener(type, fn, capture || false);
-  } else {
-    el.attachEvent('on' + type, fn);
-  }
-  return fn;
-};
-
-/**
- * Unbind `el` event `type`'s callback `fn`.
- *
- * @param {Element} el
- * @param {String} type
- * @param {Function} fn
- * @param {Boolean} capture
- * @return {Function}
- * @api public
- */
-
-Binder.unbind = function(el, type, fn, capture) {
-  if (el.removeEventListener) {
-    el.removeEventListener(type, fn, capture || false);
-  } else {
-    el.detachEvent('on' + type, fn);
-  }
-  return fn;
-};
-
-/**
- * Bind an event to only be triggered a single time
- *
- * @param {Element} el
- * @param {String} type
- * @param {Function} fn
- * @param {Boolean} capture
- * @return {Function}
- * @api public
- */
-
-Binder.once = function(el, type, fn, capture) {
-  var self = this;
-  var one = function() {
-    Binder.unbind(el, type, one, capture);
-    fn.apply(self, arguments);
-  };
-  return Binder.bind(el, type, one, capture);
-};
-
-/**
- * Bind event
- *
- * @param {String} type
- * @param {Function} fn
- * @param {Boolean} capture
- * @return {Binder}
- * @api public
- */
-
-Binder.prototype.on = function(type, fn, capture) {
-  Binder.bind(this.el, type, fn, capture);
-  return this;
-};
-
-/**
- * Unbind event
- *
- * @param {String} type
- * @param {Function} fn
- * @param {Boolean} capture
- * @return {Binder}
- * @api public
- */
-
-Binder.prototype.off = function(type, fn, capture) {
-  Binder.unbind(this.el, type, fn, capture);
-  return this;
-};
-
-/**
- * bind event once
- *
- * @param {String} type
- * @param {Function} fn
- * @param {Boolean} capture
- * @return {Binder}
- * @api public
- */
-
-Binder.prototype.once = function(type, fn, capture) {
-  Binder.once(this.el, type, fn, capture);
-  return this;
-};
-
-});
 require.register("pgherveou-angle/index.js", function(exports, require, module){
 /**
  * calculate the angle between two points
@@ -905,10 +1139,10 @@ require.register("snap/index.js", function(exports, require, module){
  */
 
 var angle = require('angle'),
-    bind = require('bind'),
-    Binder  = require('event'),
+    ev = require('event'),
+    events  = require('events'),
     classes = require('classes'),
-    Emitter = require('emitter'),
+    emitter = require('emitter'),
     prevent = require('prevent'),
     prefix  = require('prefix'),
     translate = require('translate'),
@@ -919,27 +1153,30 @@ var angle = require('angle'),
 var transform = prefix('transform'),
     transition = prefix('transition'),
     hasTouch = 'ontouchstart' in window,
-    evs = {
-      down: hasTouch ? 'touchstart' : 'mousedown',
-      move: hasTouch ? 'touchmove' : 'mousemove',
-      up: hasTouch ? 'touchend' : 'mouseup',
-      out: hasTouch ? 'touchcancel' : 'mouseout'
-    },
-    defaults = {
-      disableLeft: false,
-      disableRight: false,
-      tapToClose: true,
-      touchToDrag: true,
-      hyperextensible: true,
-      resistance: 0.5,
-      flickThreshold: 50,
-      transitionSpeed: 0.3,
-      easing: 'ease',
-      maxPosition: 266,
-      minPosition: -266,
-      slideIntent: 40, // degrees
-      minDragDistance: 20
-    };
+    evs, defaults;
+
+evs = {
+  down: hasTouch ? 'touchstart' : 'mousedown',
+  move: hasTouch ? 'touchmove' : 'mousemove',
+  up: hasTouch ? 'touchend' : 'mouseup',
+  out: hasTouch ? 'touchcancel' : 'mouseout'
+};
+
+defaults = {
+  disableLeft: false,
+  disableRight: false,
+  tapToClose: true,
+  touchToDrag: true,
+  hyperextensible: true,
+  resistance: 0.5,
+  flickThreshold: 50,
+  transitionSpeed: 0.3,
+  easing: 'ease',
+  maxPosition: 266,
+  minPosition: -266,
+  slideIntent: 40, // degrees
+  minDragDistance: 20
+};
 
 /**
  * helper function
@@ -951,15 +1188,10 @@ var transform = prefix('transform'),
  */
 
 var page = function page(t, e){
-  return (hasTouch && e.touches.length && e.touches[0]) ? e.touches[0]['page'+t] : e['page'+t];
+  return (hasTouch
+      && e.touches.length
+      && e.touches[0]) ? e.touches[0]['page'+t] : e['page'+t];
 };
-
-
-/**
- * Expose Snap
- */
-
-module.exports = Snap;
 
 /**
  * Initialize a new `Snap`
@@ -973,14 +1205,18 @@ function Snap(el, opts) {
   this.el = el;
   this.state = {};
   this.opts = {};
-  this.$el = new Binder(this.el);
+  this.events = events(el, this);
   this.$parent = classes(this.el.parentNode),
-  this.startDrag = bind(this, this.startDrag);
-  this.dragging = bind(this, this.dragging);
-  this.endDrag = bind(this, this.endDrag);
   this.startListening(opts);
   this.translate(0);
 }
+
+/**
+ * Expose Snap
+ */
+
+module.exports = Snap;
+
 
 /**
  * set options
@@ -1003,7 +1239,7 @@ Snap.prototype.setOpts = function(opts) {
  * Mixin emitter
  */
 
-Emitter(Snap.prototype);
+emitter(Snap.prototype);
 
 /**
  * get translation left position
@@ -1013,13 +1249,13 @@ Emitter(Snap.prototype);
  */
 
 Snap.prototype.position = function() {
-  var style = window.getComputedStyle(this.el)
-    , matrix = style[transform].match(/\((.*)\)/);
+  var style = window.getComputedStyle(this.el),
+      matrix = style[transform].match(/\((.*)\)/);
   if (matrix) {
     matrix = matrix[1].split(',');
     return parseInt(matrix[4], 10);
   } else {
-    return +style['left'].split('px')[0] || 0;
+    return +style.left.split('px')[0] || 0;
   }
 };
 
@@ -1031,28 +1267,37 @@ Snap.prototype.position = function() {
  */
 
 Snap.prototype.easeTo = function(n) {
-  var self = this;
+  var _this = this;
   this.easing = true;
-  this.el.style[transition] = 'all ' + this.opts.transitionSpeed + 's ' + this.opts.easing;
+  this.el.style[transition] = 'all '
+    + this.opts.transitionSpeed + 's ' + this.opts.easing;
 
   var cb = function() {
     var status;
-    self.el.style[transition] = '';
-    self.translation = n;
-    self.easing = false;
+    ev.unbind(_this.el, transitionend, cb);
 
-    if (n == window.innerWidth) status = 'left-expand';
-    else if (n >= self.opts.maxPosition) status = 'left-open';
-    else if (n == -window.innerWidth) status = 'right-expand';
-    else if (n <= self.opts.minPosition) status = 'right-open';
-    else status = 'closed';
+    _this.el.style[transition] = '';
+    _this.translation = n;
+    _this.easing = false;
 
-    self.setParentClass('snap-'+ status);
-    self.emit('toggle', status);
+    if (n === window.innerWidth) {
+      status = 'left-expand';
+    } else if (n >= _this.opts.maxPosition) {
+      status = 'left-open';
+    } else if (n === -window.innerWidth) {
+      status = 'right-expand';
+    } else if (n <= _this.opts.minPosition) {
+      status = 'right-open';
+    } else {
+      status = 'closed';
+    }
+
+    _this.setParentClass('snap-'+ status);
+    _this.emit('toggle', status);
   };
 
-  this.$el.once(transitionend, cb);
-  this.emit('animate', self.state);
+  ev.bind(this.el, transitionend, cb);
+  this.emit('animate', this.state);
   this.translate(n);
 };
 
@@ -1094,7 +1339,8 @@ Snap.prototype.opening = function(opening) {
  */
 
 Snap.prototype.translate = function(n) {
-  if((this.opts.disableLeft && n > 0) || (this.opts.disableRight && n < 0)) return;
+  if((this.opts.disableLeft && n > 0) ||
+    (this.opts.disableRight && n < 0)) return;
 
   if (!this.opts.hyperextensible) {
     if (n > this.opts.maxPosition)
@@ -1119,9 +1365,9 @@ Snap.prototype.startListening = function(opts) {
   this.translation = 0;
   this.easing = false;
   if (this.opts.disableRight && this.opts.disableLeft) return;
-  this.$el.on(evs.down, this.startDrag);
-  if (this.opts.touchToDrag) this.$el.on(evs.move, this.dragging);
-  this.$el.on(evs.up, this.endDrag);
+  if (this.opts.touchToDrag) this.events.bind(evs.move, 'dragging');
+  this.events.bind(evs.down, 'startDrag');
+  this.events.bind(evs.up, 'endDrag');
 };
 
 /**
@@ -1131,9 +1377,7 @@ Snap.prototype.startListening = function(opts) {
  */
 
 Snap.prototype.stopListening = function() {
-  this.$el.off(evs.down, this.startDrag);
-  this.$el.off(evs.move, this.dragging);
-  this.$el.off(evs.up, this.endDrag);
+  this.events.unbind();
 };
 
 /**
@@ -1164,8 +1408,7 @@ Snap.prototype.startDrag = function(e) {
   // No drag on ignored elements
   var target = e.target ? e.target : e.srcElement;
 
-  if (this.canDrag(target))
-    return this.emit('ignore');
+  if (this.canDrag(target)) return this.emit('ignore');
 
   this.emit('start', this.state);
   this.el.style[transition] = '';
@@ -1176,7 +1419,7 @@ Snap.prototype.startDrag = function(e) {
   this.startDragX = page('X', e);
   this.startDragY = page('Y', e);
 
-  this.dragWatchers = {
+  this.drag = {
     current: 0,
     last: 0,
     hold: 0,
@@ -1216,84 +1459,91 @@ Snap.prototype.dragging = function(e) {
       translateTo = whileDragX,
       diff;
 
-    if (!this.hasIntent) {
-      var deg = angle(this.startDragX, this.startDragY, thePageX, thePageY),
-          inRightRange = (deg >= 0 && deg <= this.opts.slideIntent) || (deg <= 360 && deg > (360 - this.opts.slideIntent)),
-          inLeftRange = (deg >= 180 && deg <= (180 + this.opts.slideIntent)) || (deg <= 180 && deg >= (180 - this.opts.slideIntent));
+  if (!this.hasIntent) {
+    var deg = angle(this.startDragX, this.startDragY, thePageX, thePageY),
+        inRightRange = (deg >= 0 && deg <= this.opts.slideIntent)
+                    || (deg <= 360 && deg > (360 - this.opts.slideIntent)),
 
-      if (!inLeftRange && !inRightRange) {
-        this.hasIntent = false;
-      } else {
-        this.hasIntent = true;
-      }
-      this.intentChecked = true;
-    }
+        inLeftRange = (deg >= 180 && deg <= (180 + this.opts.slideIntent))
+                   || (deg <= 180 && deg >= (180 - this.opts.slideIntent));
 
-    // angle in range?
-    if (!this.hasIntent) return;
-
-    // Has user met minimum drag distance?
-    if (this.opts.minDragDistance >= Math.abs(thePageX-this.startDragX)) return;
-
-    prevent(e);
-    this.emit('drag', this.state);
-
-    this.dragWatchers.current = thePageX;
-    // Determine which direction we are going
-    if (this.dragWatchers.last > thePageX) {
-        if (this.dragWatchers.state !== 'left') {
-            this.dragWatchers.state = 'left';
-            this.dragWatchers.hold = thePageX;
-        }
-        this.dragWatchers.last = thePageX;
-    } else if (this.dragWatchers.last < thePageX) {
-        if (this.dragWatchers.state !== 'right') {
-            this.dragWatchers.state = 'right';
-            this.dragWatchers.hold = thePageX;
-        }
-        this.dragWatchers.last = thePageX;
-    }
-
-    if (openingLeft) {
-        // Pulling too far to the right
-        if (this.opts.maxPosition < absoluteTranslation) {
-            diff = (absoluteTranslation - this.opts.maxPosition) * this.opts.resistance;
-            translateTo = whileDragX - diff;
-        }
-        this.state = {
-            opening: this.opening('left'),
-            towards: this.dragWatchers.state,
-            hyperExtending: this.opts.maxPosition < absoluteTranslation,
-            halfway: absoluteTranslation > (this.opts.maxPosition / 2),
-            flick: Math.abs(this.dragWatchers.current - this.dragWatchers.hold) > this.opts.flickThreshold,
-            translation: {
-                absolute: absoluteTranslation,
-                relative: whileDragX,
-                sinceDirectionChange: (this.dragWatchers.current - this.dragWatchers.hold),
-                percentage: (absoluteTranslation/this.opts.maxPosition)*100
-            }
-        };
+    if (!inLeftRange && !inRightRange) {
+      this.hasIntent = false;
     } else {
-        // Pulling too far to the left
-        if (this.opts.minPosition > absoluteTranslation) {
-            diff = (absoluteTranslation - this.opts.minPosition) * this.opts.resistance;
-            translateTo = whileDragX - diff;
-        }
-        this.state = {
-            opening: this.opening('right'),
-            towards: this.dragWatchers.state,
-            hyperExtending: this.opts.minPosition > absoluteTranslation,
-            halfway: absoluteTranslation < (this.opts.minPosition / 2),
-            flick: Math.abs(this.dragWatchers.current - this.dragWatchers.hold) > this.opts.flickThreshold,
-            translation: {
-                absolute: absoluteTranslation,
-                relative: whileDragX,
-                sinceDirectionChange: (this.dragWatchers.current - this.dragWatchers.hold),
-                percentage: (absoluteTranslation/this.opts.minPosition)*100
-            }
-        };
+      this.hasIntent = true;
     }
-    this.translate(translateTo + translated);
+    this.intentChecked = true;
+  }
+
+  // angle in range?
+  if (!this.hasIntent) return;
+
+  // Has user met minimum drag distance?
+  if (this.opts.minDragDistance >= Math.abs(thePageX-this.startDragX)) return;
+
+  prevent(e);
+  this.emit('drag', this.state);
+
+  this.drag.current = thePageX;
+  // Determine which direction we are going
+  if (this.drag.last > thePageX) {
+    if (this.drag.state !== 'left') {
+      this.drag.state = 'left';
+      this.drag.hold = thePageX;
+    }
+    this.drag.last = thePageX;
+  } else if (this.drag.last < thePageX) {
+    if (this.drag.state !== 'right') {
+      this.drag.state = 'right';
+      this.drag.hold = thePageX;
+    }
+    this.drag.last = thePageX;
+  }
+
+  if (openingLeft) {
+
+    // Pulling too far to the right
+    if (this.opts.maxPosition < absoluteTranslation) {
+      diff = (absoluteTranslation - this.opts.maxPosition)
+           * this.opts.resistance;
+
+      translateTo = whileDragX - diff;
+    }
+    this.state = {
+      opening: this.opening('left'),
+      towards: this.drag.state,
+      hyperExtending: this.opts.maxPosition < absoluteTranslation,
+      halfway: absoluteTranslation > (this.opts.maxPosition / 2),
+      flick: Math.abs(this.drag.current - this.drag.hold) > this.opts.flickThreshold,
+      translation: {
+        absolute: absoluteTranslation,
+        relative: whileDragX,
+        sinceDirectionChange: (this.drag.current - this.drag.hold),
+        percentage: (absoluteTranslation/this.opts.maxPosition)*100
+      }
+    };
+  } else {
+
+    // Pulling too far to the left
+    if (this.opts.minPosition > absoluteTranslation) {
+      diff = (absoluteTranslation - this.opts.minPosition) * this.opts.resistance;
+      translateTo = whileDragX - diff;
+    }
+    this.state = {
+      opening: this.opening('right'),
+      towards: this.drag.state,
+      hyperExtending: this.opts.minPosition > absoluteTranslation,
+      halfway: absoluteTranslation < (this.opts.minPosition / 2),
+      flick: Math.abs(this.drag.current - this.drag.hold) > this.opts.flickThreshold,
+      translation: {
+        absolute: absoluteTranslation,
+        relative: whileDragX,
+        sinceDirectionChange: (this.drag.current - this.drag.hold),
+        percentage: (absoluteTranslation/this.opts.minPosition)*100
+      }
+    };
+  }
+  this.translate(translateTo + translated);
 };
 
 /**
@@ -1310,43 +1560,60 @@ Snap.prototype.endDrag = function(e) {
   var translated = this.position();
 
   // Tap Close
-  if (this.dragWatchers.current === 0 && translated !== 0 && this.opts.tapToClose) {
-      prevent(e);
-      this.easeTo(0);
-      this.isDragging = false;
-      this.startDragX = 0;
-      return;
+  if (this.drag.current === 0 &&
+    translated !== 0 && this.opts.tapToClose) {
+    prevent(e);
+    this.easeTo(0);
+    this.isDragging = false;
+    this.startDragX = 0;
+    return;
   }
+
   // Revealing Left
   if (this.state.opening === 'left') {
-      // Halfway, Flicking, or Too Far Out
-      if ((this.state.halfway || this.state.hyperExtending || this.state.flick)) {
-          if (this.state.flick && this.state.towards === 'left') { // Flicking Closed
-              this.easeTo(0);
-          } else if (
-              (this.state.flick && this.state.towards === 'right') || // Flicking Open OR
-              (this.state.halfway || this.state.hyperExtending) // At least halfway open OR hyperextending
-          ) {
-              this.easeTo(this.opts.maxPosition); // Open Left
-          }
-      } else {
-          this.easeTo(0); // Close Left
+
+    // Halfway, Flicking, or Too Far Out
+    if ((this.state.halfway || this.state.hyperExtending || this.state.flick)) {
+
+      // Flicking Closed
+      if (this.state.flick && this.state.towards === 'left') {
+        this.easeTo(0);
+
+      // Flicking Open OR At least halfway open OR hyperextending
+      } else if (
+        (this.state.flick && this.state.towards === 'right') ||
+        (this.state.halfway || this.state.hyperExtending)
+      ) {
+        this.easeTo(this.opts.maxPosition); // Open Left
       }
-      // Revealing Right
+
+    // Close Left
+    } else {
+      this.easeTo(0);
+    }
+
+  // Revealing Right
   } else if (this.state.opening === 'right') {
-      // Halfway, Flicking, or Too Far Out
-      if ((this.state.halfway || this.state.hyperExtending || this.state.flick)) {
-          if (this.state.flick && this.state.towards === 'right') { // Flicking Closed
-              this.easeTo(0);
-          } else if (
-              (this.state.flick && this.state.towards === 'left') || // Flicking Open OR
-              (this.state.halfway || this.state.hyperExtending) // At least halfway open OR hyperextending
-          ) {
-              this.easeTo(this.opts.minPosition); // Open Right
-          }
-      } else {
-          this.easeTo(0); // Close Right
+
+    // Halfway, Flicking, or Too Far Out
+    if ((this.state.halfway || this.state.hyperExtending || this.state.flick)) {
+
+      // Flicking Closed
+      if (this.state.flick && this.state.towards === 'right') {
+        this.easeTo(0);
+
+      // Flicking Open OR At least halfway open OR hyperextending
+      } else if (
+        (this.state.flick && this.state.towards === 'left') ||
+        (this.state.halfway || this.state.hyperExtending)
+      ) {
+        this.easeTo(this.opts.minPosition); // Open Right
       }
+
+    // Close Right
+    } else {
+      this.easeTo(0);
+    }
   }
   this.isDragging = false;
   this.startDragX = page('X', e);
@@ -1368,8 +1635,8 @@ Snap.prototype.getState = function () {
 /**
  * open a drawer
  *
- *  @param  {String} side
- *  @api public
+ * @param  {String} side
+ * @api public
  */
 
 Snap.prototype.open = function(side) {
@@ -1435,9 +1702,37 @@ Snap.prototype.expand = function(side) {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
 require.alias("component-emitter/index.js", "snap/deps/emitter/index.js");
 require.alias("component-emitter/index.js", "emitter/index.js");
 require.alias("component-indexof/index.js", "component-emitter/deps/indexof/index.js");
+
+require.alias("component-event/index.js", "snap/deps/event/index.js");
+require.alias("component-event/index.js", "event/index.js");
+
+require.alias("component-events/index.js", "snap/deps/events/index.js");
+require.alias("component-events/index.js", "events/index.js");
+require.alias("component-event/index.js", "component-events/deps/event/index.js");
+
+require.alias("component-delegate/index.js", "component-events/deps/delegate/index.js");
+require.alias("discore-closest/index.js", "component-delegate/deps/closest/index.js");
+require.alias("discore-closest/index.js", "component-delegate/deps/closest/index.js");
+require.alias("component-matches-selector/index.js", "discore-closest/deps/matches-selector/index.js");
+require.alias("component-query/index.js", "component-matches-selector/deps/query/index.js");
+
+require.alias("discore-closest/index.js", "discore-closest/index.js");
+require.alias("component-event/index.js", "component-delegate/deps/event/index.js");
 
 require.alias("component-bind/index.js", "snap/deps/bind/index.js");
 require.alias("component-bind/index.js", "bind/index.js");
@@ -1454,9 +1749,6 @@ require.alias("component-translate/index.js", "component-translate/index.js");
 require.alias("component-classes/index.js", "snap/deps/classes/index.js");
 require.alias("component-classes/index.js", "classes/index.js");
 require.alias("component-indexof/index.js", "component-classes/deps/indexof/index.js");
-
-require.alias("pgherveou-event/index.js", "snap/deps/event/index.js");
-require.alias("pgherveou-event/index.js", "event/index.js");
 
 require.alias("pgherveou-angle/index.js", "snap/deps/angle/index.js");
 require.alias("pgherveou-angle/index.js", "snap/deps/angle/index.js");

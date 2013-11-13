@@ -1,9 +1,16 @@
 {
-  "name": "Snap.js",
-  "version": "0.0.0",
+  "name": "snap",
+  "version": "0.0.1",
   "description": "A Library for creating beautiful mobile shelfs in Javascript",
-  "devDependencies": {
-    "uglify-js": "*"
-  }
 
+  "devDependencies": {
+    "mocha": "*",
+    "chai": "*",
+    "grunt": "*",
+    "grunt-shell": "*",
+    "grunt-contrib-jshint": "*",
+    "grunt-contrib-watch": "*",
+    "grunt-contrib-connect": "*",
+    "grunt-contrib-clean": "*"
+  }
 }

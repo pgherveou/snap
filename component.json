@@ -5,10 +5,11 @@
   "version": "0.0.1",
   "dependencies": {
     "component/emitter": "*",
+    "component/event": "*",
+    "component/events": "*",
     "component/bind": "*",
     "component/translate": "*",
     "component/classes": "*",
-    "pgherveou/event": "*",
     "pgherveou/angle": "*",
     "yields/prevent": "*",
     "pgherveou/prefix": "*",

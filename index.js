@@ -14,10 +14,10 @@
  */
 
 var angle = require('angle'),
-    bind = require('bind'),
-    Binder  = require('event'),
+    ev = require('event'),
+    events  = require('events'),
     classes = require('classes'),
-    Emitter = require('emitter'),
+    emitter = require('emitter'),
     prevent = require('prevent'),
     prefix  = require('prefix'),
     translate = require('translate'),
@@ -28,27 +28,30 @@ var angle = require('angle'),
 var transform = prefix('transform'),
     transition = prefix('transition'),
     hasTouch = 'ontouchstart' in window,
-    evs = {
-      down: hasTouch ? 'touchstart' : 'mousedown',
-      move: hasTouch ? 'touchmove' : 'mousemove',
-      up: hasTouch ? 'touchend' : 'mouseup',
-      out: hasTouch ? 'touchcancel' : 'mouseout'
-    },
-    defaults = {
-      disableLeft: false,
-      disableRight: false,
-      tapToClose: true,
-      touchToDrag: true,
-      hyperextensible: true,
-      resistance: 0.5,
-      flickThreshold: 50,
-      transitionSpeed: 0.3,
-      easing: 'ease',
-      maxPosition: 266,
-      minPosition: -266,
-      slideIntent: 40, // degrees
-      minDragDistance: 20
-    };
+    evs, defaults;
+
+evs = {
+  down: hasTouch ? 'touchstart' : 'mousedown',
+  move: hasTouch ? 'touchmove' : 'mousemove',
+  up: hasTouch ? 'touchend' : 'mouseup',
+  out: hasTouch ? 'touchcancel' : 'mouseout'
+};
+
+defaults = {
+  disableLeft: false,
+  disableRight: false,
+  tapToClose: true,
+  touchToDrag: true,
+  hyperextensible: true,
+  resistance: 0.5,
+  flickThreshold: 50,
+  transitionSpeed: 0.3,
+  easing: 'ease',
+  maxPosition: 266,
+  minPosition: -266,
+  slideIntent: 40, // degrees
+  minDragDistance: 20
+};
 
 /**
  * helper function
@@ -60,15 +63,10 @@ var transform = prefix('transform'),
  */
 
 var page = function page(t, e){
-  return (hasTouch && e.touches.length && e.touches[0]) ? e.touches[0]['page'+t] : e['page'+t];
+  return (hasTouch
+      && e.touches.length
+      && e.touches[0]) ? e.touches[0]['page'+t] : e['page'+t];
 };
-
-
-/**
- * Expose Snap
- */
-
-module.exports = Snap;
 
 /**
  * Initialize a new `Snap`
@@ -82,14 +80,18 @@ function Snap(el, opts) {
   this.el = el;
   this.state = {};
   this.opts = {};
-  this.$el = new Binder(this.el);
+  this.events = events(el, this);
   this.$parent = classes(this.el.parentNode),
-  this.startDrag = bind(this, this.startDrag);
-  this.dragging = bind(this, this.dragging);
-  this.endDrag = bind(this, this.endDrag);
   this.startListening(opts);
   this.translate(0);
 }
+
+/**
+ * Expose Snap
+ */
+
+module.exports = Snap;
+
 
 /**
  * set options
@@ -112,7 +114,7 @@ Snap.prototype.setOpts = function(opts) {
  * Mixin emitter
  */
 
-Emitter(Snap.prototype);
+emitter(Snap.prototype);
 
 /**
  * get translation left position
@@ -122,13 +124,13 @@ Emitter(Snap.prototype);
  */
 
 Snap.prototype.position = function() {
-  var style = window.getComputedStyle(this.el)
-    , matrix = style[transform].match(/\((.*)\)/);
+  var style = window.getComputedStyle(this.el),
+      matrix = style[transform].match(/\((.*)\)/);
   if (matrix) {
     matrix = matrix[1].split(',');
     return parseInt(matrix[4], 10);
   } else {
-    return +style['left'].split('px')[0] || 0;
+    return +style.left.split('px')[0] || 0;
   }
 };
 
@@ -140,28 +142,37 @@ Snap.prototype.position = function() {
  */
 
 Snap.prototype.easeTo = function(n) {
-  var self = this;
+  var _this = this;
   this.easing = true;
-  this.el.style[transition] = 'all ' + this.opts.transitionSpeed + 's ' + this.opts.easing;
+  this.el.style[transition] = 'all '
+    + this.opts.transitionSpeed + 's ' + this.opts.easing;
 
   var cb = function() {
     var status;
-    self.el.style[transition] = '';
-    self.translation = n;
-    self.easing = false;
+    ev.unbind(_this.el, transitionend, cb);
 
-    if (n == window.innerWidth) status = 'left-expand';
-    else if (n >= self.opts.maxPosition) status = 'left-open';
-    else if (n == -window.innerWidth) status = 'right-expand';
-    else if (n <= self.opts.minPosition) status = 'right-open';
-    else status = 'closed';
+    _this.el.style[transition] = '';
+    _this.translation = n;
+    _this.easing = false;
 
-    self.setParentClass('snap-'+ status);
-    self.emit('toggle', status);
+    if (n === window.innerWidth) {
+      status = 'left-expand';
+    } else if (n >= _this.opts.maxPosition) {
+      status = 'left-open';
+    } else if (n === -window.innerWidth) {
+      status = 'right-expand';
+    } else if (n <= _this.opts.minPosition) {
+      status = 'right-open';
+    } else {
+      status = 'closed';
+    }
+
+    _this.setParentClass('snap-'+ status);
+    _this.emit('toggle', status);
   };
 
-  this.$el.once(transitionend, cb);
-  this.emit('animate', self.state);
+  ev.bind(this.el, transitionend, cb);
+  this.emit('animate', this.state);
   this.translate(n);
 };
 
@@ -203,7 +214,8 @@ Snap.prototype.opening = function(opening) {
  */
 
 Snap.prototype.translate = function(n) {
-  if((this.opts.disableLeft && n > 0) || (this.opts.disableRight && n < 0)) return;
+  if((this.opts.disableLeft && n > 0) ||
+    (this.opts.disableRight && n < 0)) return;
 
   if (!this.opts.hyperextensible) {
     if (n > this.opts.maxPosition)
@@ -228,9 +240,9 @@ Snap.prototype.startListening = function(opts) {
   this.translation = 0;
   this.easing = false;
   if (this.opts.disableRight && this.opts.disableLeft) return;
-  this.$el.on(evs.down, this.startDrag);
-  if (this.opts.touchToDrag) this.$el.on(evs.move, this.dragging);
-  this.$el.on(evs.up, this.endDrag);
+  if (this.opts.touchToDrag) this.events.bind(evs.move, 'dragging');
+  this.events.bind(evs.down, 'startDrag');
+  this.events.bind(evs.up, 'endDrag');
 };
 
 /**
@@ -240,9 +252,7 @@ Snap.prototype.startListening = function(opts) {
  */
 
 Snap.prototype.stopListening = function() {
-  this.$el.off(evs.down, this.startDrag);
-  this.$el.off(evs.move, this.dragging);
-  this.$el.off(evs.up, this.endDrag);
+  this.events.unbind();
 };
 
 /**
@@ -273,8 +283,7 @@ Snap.prototype.startDrag = function(e) {
   // No drag on ignored elements
   var target = e.target ? e.target : e.srcElement;
 
-  if (this.canDrag(target))
-    return this.emit('ignore');
+  if (this.canDrag(target)) return this.emit('ignore');
 
   this.emit('start', this.state);
   this.el.style[transition] = '';
@@ -285,7 +294,7 @@ Snap.prototype.startDrag = function(e) {
   this.startDragX = page('X', e);
   this.startDragY = page('Y', e);
 
-  this.dragWatchers = {
+  this.drag = {
     current: 0,
     last: 0,
     hold: 0,
@@ -325,84 +334,91 @@ Snap.prototype.dragging = function(e) {
       translateTo = whileDragX,
       diff;
 
-    if (!this.hasIntent) {
-      var deg = angle(this.startDragX, this.startDragY, thePageX, thePageY),
-          inRightRange = (deg >= 0 && deg <= this.opts.slideIntent) || (deg <= 360 && deg > (360 - this.opts.slideIntent)),
-          inLeftRange = (deg >= 180 && deg <= (180 + this.opts.slideIntent)) || (deg <= 180 && deg >= (180 - this.opts.slideIntent));
+  if (!this.hasIntent) {
+    var deg = angle(this.startDragX, this.startDragY, thePageX, thePageY),
+        inRightRange = (deg >= 0 && deg <= this.opts.slideIntent)
+                    || (deg <= 360 && deg > (360 - this.opts.slideIntent)),
 
-      if (!inLeftRange && !inRightRange) {
-        this.hasIntent = false;
-      } else {
-        this.hasIntent = true;
-      }
-      this.intentChecked = true;
-    }
+        inLeftRange = (deg >= 180 && deg <= (180 + this.opts.slideIntent))
+                   || (deg <= 180 && deg >= (180 - this.opts.slideIntent));
 
-    // angle in range?
-    if (!this.hasIntent) return;
-
-    // Has user met minimum drag distance?
-    if (this.opts.minDragDistance >= Math.abs(thePageX-this.startDragX)) return;
-
-    prevent(e);
-    this.emit('drag', this.state);
-
-    this.dragWatchers.current = thePageX;
-    // Determine which direction we are going
-    if (this.dragWatchers.last > thePageX) {
-        if (this.dragWatchers.state !== 'left') {
-            this.dragWatchers.state = 'left';
-            this.dragWatchers.hold = thePageX;
-        }
-        this.dragWatchers.last = thePageX;
-    } else if (this.dragWatchers.last < thePageX) {
-        if (this.dragWatchers.state !== 'right') {
-            this.dragWatchers.state = 'right';
-            this.dragWatchers.hold = thePageX;
-        }
-        this.dragWatchers.last = thePageX;
-    }
-
-    if (openingLeft) {
-        // Pulling too far to the right
-        if (this.opts.maxPosition < absoluteTranslation) {
-            diff = (absoluteTranslation - this.opts.maxPosition) * this.opts.resistance;
-            translateTo = whileDragX - diff;
-        }
-        this.state = {
-            opening: this.opening('left'),
-            towards: this.dragWatchers.state,
-            hyperExtending: this.opts.maxPosition < absoluteTranslation,
-            halfway: absoluteTranslation > (this.opts.maxPosition / 2),
-            flick: Math.abs(this.dragWatchers.current - this.dragWatchers.hold) > this.opts.flickThreshold,
-            translation: {
-                absolute: absoluteTranslation,
-                relative: whileDragX,
-                sinceDirectionChange: (this.dragWatchers.current - this.dragWatchers.hold),
-                percentage: (absoluteTranslation/this.opts.maxPosition)*100
-            }
-        };
+    if (!inLeftRange && !inRightRange) {
+      this.hasIntent = false;
     } else {
-        // Pulling too far to the left
-        if (this.opts.minPosition > absoluteTranslation) {
-            diff = (absoluteTranslation - this.opts.minPosition) * this.opts.resistance;
-            translateTo = whileDragX - diff;
-        }
-        this.state = {
-            opening: this.opening('right'),
-            towards: this.dragWatchers.state,
-            hyperExtending: this.opts.minPosition > absoluteTranslation,
-            halfway: absoluteTranslation < (this.opts.minPosition / 2),
-            flick: Math.abs(this.dragWatchers.current - this.dragWatchers.hold) > this.opts.flickThreshold,
-            translation: {
-                absolute: absoluteTranslation,
-                relative: whileDragX,
-                sinceDirectionChange: (this.dragWatchers.current - this.dragWatchers.hold),
-                percentage: (absoluteTranslation/this.opts.minPosition)*100
-            }
-        };
+      this.hasIntent = true;
     }
-    this.translate(translateTo + translated);
+    this.intentChecked = true;
+  }
+
+  // angle in range?
+  if (!this.hasIntent) return;
+
+  // Has user met minimum drag distance?
+  if (this.opts.minDragDistance >= Math.abs(thePageX-this.startDragX)) return;
+
+  prevent(e);
+  this.emit('drag', this.state);
+
+  this.drag.current = thePageX;
+  // Determine which direction we are going
+  if (this.drag.last > thePageX) {
+    if (this.drag.state !== 'left') {
+      this.drag.state = 'left';
+      this.drag.hold = thePageX;
+    }
+    this.drag.last = thePageX;
+  } else if (this.drag.last < thePageX) {
+    if (this.drag.state !== 'right') {
+      this.drag.state = 'right';
+      this.drag.hold = thePageX;
+    }
+    this.drag.last = thePageX;
+  }
+
+  if (openingLeft) {
+
+    // Pulling too far to the right
+    if (this.opts.maxPosition < absoluteTranslation) {
+      diff = (absoluteTranslation - this.opts.maxPosition)
+           * this.opts.resistance;
+
+      translateTo = whileDragX - diff;
+    }
+    this.state = {
+      opening: this.opening('left'),
+      towards: this.drag.state,
+      hyperExtending: this.opts.maxPosition < absoluteTranslation,
+      halfway: absoluteTranslation > (this.opts.maxPosition / 2),
+      flick: Math.abs(this.drag.current - this.drag.hold) > this.opts.flickThreshold,
+      translation: {
+        absolute: absoluteTranslation,
+        relative: whileDragX,
+        sinceDirectionChange: (this.drag.current - this.drag.hold),
+        percentage: (absoluteTranslation/this.opts.maxPosition)*100
+      }
+    };
+  } else {
+
+    // Pulling too far to the left
+    if (this.opts.minPosition > absoluteTranslation) {
+      diff = (absoluteTranslation - this.opts.minPosition) * this.opts.resistance;
+      translateTo = whileDragX - diff;
+    }
+    this.state = {
+      opening: this.opening('right'),
+      towards: this.drag.state,
+      hyperExtending: this.opts.minPosition > absoluteTranslation,
+      halfway: absoluteTranslation < (this.opts.minPosition / 2),
+      flick: Math.abs(this.drag.current - this.drag.hold) > this.opts.flickThreshold,
+      translation: {
+        absolute: absoluteTranslation,
+        relative: whileDragX,
+        sinceDirectionChange: (this.drag.current - this.drag.hold),
+        percentage: (absoluteTranslation/this.opts.minPosition)*100
+      }
+    };
+  }
+  this.translate(translateTo + translated);
 };
 
 /**
@@ -419,43 +435,60 @@ Snap.prototype.endDrag = function(e) {
   var translated = this.position();
 
   // Tap Close
-  if (this.dragWatchers.current === 0 && translated !== 0 && this.opts.tapToClose) {
-      prevent(e);
-      this.easeTo(0);
-      this.isDragging = false;
-      this.startDragX = 0;
-      return;
+  if (this.drag.current === 0 &&
+    translated !== 0 && this.opts.tapToClose) {
+    prevent(e);
+    this.easeTo(0);
+    this.isDragging = false;
+    this.startDragX = 0;
+    return;
   }
+
   // Revealing Left
   if (this.state.opening === 'left') {
-      // Halfway, Flicking, or Too Far Out
-      if ((this.state.halfway || this.state.hyperExtending || this.state.flick)) {
-          if (this.state.flick && this.state.towards === 'left') { // Flicking Closed
-              this.easeTo(0);
-          } else if (
-              (this.state.flick && this.state.towards === 'right') || // Flicking Open OR
-              (this.state.halfway || this.state.hyperExtending) // At least halfway open OR hyperextending
-          ) {
-              this.easeTo(this.opts.maxPosition); // Open Left
-          }
-      } else {
-          this.easeTo(0); // Close Left
+
+    // Halfway, Flicking, or Too Far Out
+    if ((this.state.halfway || this.state.hyperExtending || this.state.flick)) {
+
+      // Flicking Closed
+      if (this.state.flick && this.state.towards === 'left') {
+        this.easeTo(0);
+
+      // Flicking Open OR At least halfway open OR hyperextending
+      } else if (
+        (this.state.flick && this.state.towards === 'right') ||
+        (this.state.halfway || this.state.hyperExtending)
+      ) {
+        this.easeTo(this.opts.maxPosition); // Open Left
       }
-      // Revealing Right
+
+    // Close Left
+    } else {
+      this.easeTo(0);
+    }
+
+  // Revealing Right
   } else if (this.state.opening === 'right') {
-      // Halfway, Flicking, or Too Far Out
-      if ((this.state.halfway || this.state.hyperExtending || this.state.flick)) {
-          if (this.state.flick && this.state.towards === 'right') { // Flicking Closed
-              this.easeTo(0);
-          } else if (
-              (this.state.flick && this.state.towards === 'left') || // Flicking Open OR
-              (this.state.halfway || this.state.hyperExtending) // At least halfway open OR hyperextending
-          ) {
-              this.easeTo(this.opts.minPosition); // Open Right
-          }
-      } else {
-          this.easeTo(0); // Close Right
+
+    // Halfway, Flicking, or Too Far Out
+    if ((this.state.halfway || this.state.hyperExtending || this.state.flick)) {
+
+      // Flicking Closed
+      if (this.state.flick && this.state.towards === 'right') {
+        this.easeTo(0);
+
+      // Flicking Open OR At least halfway open OR hyperextending
+      } else if (
+        (this.state.flick && this.state.towards === 'left') ||
+        (this.state.halfway || this.state.hyperExtending)
+      ) {
+        this.easeTo(this.opts.minPosition); // Open Right
       }
+
+    // Close Right
+    } else {
+      this.easeTo(0);
+    }
   }
   this.isDragging = false;
   this.startDragX = page('X', e);
@@ -477,8 +510,8 @@ Snap.prototype.getState = function () {
 /**
  * open a drawer
  *
- *  @param  {String} side
- *  @api public
+ * @param  {String} side
+ * @api public
  */
 
 Snap.prototype.open = function(side) {
