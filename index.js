@@ -256,14 +256,14 @@ Snap.prototype.stopListening = function() {
 };
 
 /**
- * checki if user can start a drag
+ * check if user can start a drag
  * @param  {Element} el
  * @return {[Element]}
  *
  * @api private
  */
 
-Snap.prototype.canDrag = function(el) {
+Snap.prototype.ignoreDrag = function(el) {
   while (el.parentNode) {
     if (el === this.el) return null;
     if (el.getAttribute && el.getAttribute('data-snap-ignore')) return el;
@@ -283,7 +283,7 @@ Snap.prototype.startDrag = function(e) {
   // No drag on ignored elements
   var target = e.target ? e.target : e.srcElement;
 
-  if (this.canDrag(target)) return this.emit('ignore');
+  if (this.ignoreDrag(target)) return;
 
   this.emit('start', this.state);
   this.el.style[transition] = '';
@@ -353,10 +353,12 @@ Snap.prototype.dragging = function(e) {
   // angle in range?
   if (!this.hasIntent) return;
 
+  // prevent default
+  prevent(e);
+
   // Has user met minimum drag distance?
   if (this.opts.minDragDistance >= Math.abs(thePageX-this.startDragX)) return;
 
-  prevent(e);
   this.emit('drag', this.state);
   this.drag.current = thePageX;
 
