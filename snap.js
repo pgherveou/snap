@@ -1,40 +1,22 @@
+
 ;(function(){
 
 /**
- * Require the given path.
+ * Require the module at `name`.
  *
- * @param {String} path
+ * @param {String} name
  * @return {Object} exports
  * @api public
  */
 
-function require(path, parent, orig) {
-  var resolved = require.resolve(path);
+function require(name) {
+  var module = require.modules[name];
+  if (!module) throw new Error('failed to require "' + name + '"');
 
-  // lookup failed
-  if (null == resolved) {
-    orig = orig || path;
-    parent = parent || 'root';
-    var err = new Error('Failed to require "' + orig + '" from "' + parent + '"');
-    err.path = orig;
-    err.parent = parent;
-    err.require = true;
-    throw err;
-  }
-
-  var module = require.modules[resolved];
-
-  // perform real require()
-  // by invoking the module's
-  // registered function
-  if (!module._resolving && !module.exports) {
-    var mod = {};
-    mod.exports = {};
-    mod.client = mod.component = true;
-    module._resolving = true;
-    module.call(this, mod.exports, require.relative(resolved), mod);
-    delete module._resolving;
-    module.exports = mod.exports;
+  if (!('exports' in module) && typeof module.definition === 'function') {
+    module.client = module.component = true;
+    module.definition.call(this, module.exports = {}, module);
+    delete module.definition;
   }
 
   return module.exports;
@@ -47,178 +29,33 @@ function require(path, parent, orig) {
 require.modules = {};
 
 /**
- * Registered aliases.
- */
-
-require.aliases = {};
-
-/**
- * Resolve `path`.
+ * Register module at `name` with callback `definition`.
  *
- * Lookup:
- *
- *   - PATH/index.js
- *   - PATH.js
- *   - PATH
- *
- * @param {String} path
- * @return {String} path or null
- * @api private
- */
-
-require.resolve = function(path) {
-  if (path.charAt(0) === '/') path = path.slice(1);
-
-  var paths = [
-    path,
-    path + '.js',
-    path + '.json',
-    path + '/index.js',
-    path + '/index.json'
-  ];
-
-  for (var i = 0; i < paths.length; i++) {
-    var path = paths[i];
-    if (require.modules.hasOwnProperty(path)) return path;
-    if (require.aliases.hasOwnProperty(path)) return require.aliases[path];
-  }
-};
-
-/**
- * Normalize `path` relative to the current path.
- *
- * @param {String} curr
- * @param {String} path
- * @return {String}
- * @api private
- */
-
-require.normalize = function(curr, path) {
-  var segs = [];
-
-  if ('.' != path.charAt(0)) return path;
-
-  curr = curr.split('/');
-  path = path.split('/');
-
-  for (var i = 0; i < path.length; ++i) {
-    if ('..' == path[i]) {
-      curr.pop();
-    } else if ('.' != path[i] && '' != path[i]) {
-      segs.push(path[i]);
-    }
-  }
-
-  return curr.concat(segs).join('/');
-};
-
-/**
- * Register module at `path` with callback `definition`.
- *
- * @param {String} path
+ * @param {String} name
  * @param {Function} definition
  * @api private
  */
 
-require.register = function(path, definition) {
-  require.modules[path] = definition;
+require.register = function (name, definition) {
+  require.modules[name] = {
+    definition: definition
+  };
 };
 
 /**
- * Alias a module definition.
+ * Define a module's exports immediately with `exports`.
  *
- * @param {String} from
- * @param {String} to
+ * @param {String} name
+ * @param {Generic} exports
  * @api private
  */
 
-require.alias = function(from, to) {
-  if (!require.modules.hasOwnProperty(from)) {
-    throw new Error('Failed to alias "' + from + '", it does not exist');
-  }
-  require.aliases[to] = from;
-};
-
-/**
- * Return a require function relative to the `parent` path.
- *
- * @param {String} parent
- * @return {Function}
- * @api private
- */
-
-require.relative = function(parent) {
-  var p = require.normalize(parent, '..');
-
-  /**
-   * lastIndexOf helper.
-   */
-
-  function lastIndexOf(arr, obj) {
-    var i = arr.length;
-    while (i--) {
-      if (arr[i] === obj) return i;
-    }
-    return -1;
-  }
-
-  /**
-   * The relative require() itself.
-   */
-
-  function localRequire(path) {
-    var resolved = localRequire.resolve(path);
-    return require(resolved, parent, path);
-  }
-
-  /**
-   * Resolve relative to the parent.
-   */
-
-  localRequire.resolve = function(path) {
-    var c = path.charAt(0);
-    if ('/' == c) return path.slice(1);
-    if ('.' == c) return require.normalize(p, path);
-
-    // resolve deps by returning
-    // the dep in the nearest "deps"
-    // directory
-    var segs = parent.split('/');
-    var i = lastIndexOf(segs, 'deps') + 1;
-    if (!i) i = 0;
-    path = segs.slice(0, i + 1).join('/') + '/deps/' + path;
-    return path;
+require.define = function (name, exports) {
+  require.modules[name] = {
+    exports: exports
   };
-
-  /**
-   * Check if module is defined at `path`.
-   */
-
-  localRequire.exists = function(path) {
-    return require.modules.hasOwnProperty(localRequire.resolve(path));
-  };
-
-  return localRequire;
 };
-require.register("component-indexof/index.js", function(exports, require, module){
-
-var indexOf = [].indexOf;
-
-module.exports = function(arr, obj){
-  if (indexOf) return arr.indexOf(obj);
-  for (var i = 0; i < arr.length; ++i) {
-    if (arr[i] === obj) return i;
-  }
-  return -1;
-};
-});
-require.register("component-emitter/index.js", function(exports, require, module){
-
-/**
- * Module dependencies.
- */
-
-var index = require('indexof');
+require.register("component~emitter@1.1.2", function (exports, module) {
 
 /**
  * Expose `Emitter`.
@@ -260,7 +97,8 @@ function mixin(obj) {
  * @api public
  */
 
-Emitter.prototype.on = function(event, fn){
+Emitter.prototype.on =
+Emitter.prototype.addEventListener = function(event, fn){
   this._callbacks = this._callbacks || {};
   (this._callbacks[event] = this._callbacks[event] || [])
     .push(fn);
@@ -286,7 +124,7 @@ Emitter.prototype.once = function(event, fn){
     fn.apply(this, arguments);
   }
 
-  fn._off = on;
+  on.fn = fn;
   this.on(event, on);
   return this;
 };
@@ -303,7 +141,8 @@ Emitter.prototype.once = function(event, fn){
 
 Emitter.prototype.off =
 Emitter.prototype.removeListener =
-Emitter.prototype.removeAllListeners = function(event, fn){
+Emitter.prototype.removeAllListeners =
+Emitter.prototype.removeEventListener = function(event, fn){
   this._callbacks = this._callbacks || {};
 
   // all
@@ -323,8 +162,14 @@ Emitter.prototype.removeAllListeners = function(event, fn){
   }
 
   // remove specific handler
-  var i = index(callbacks, fn._off || fn);
-  if (~i) callbacks.splice(i, 1);
+  var cb;
+  for (var i = 0; i < callbacks.length; i++) {
+    cb = callbacks[i];
+    if (cb === fn || cb.fn === fn) {
+      callbacks.splice(i, 1);
+      break;
+    }
+  }
   return this;
 };
 
@@ -377,10 +222,11 @@ Emitter.prototype.hasListeners = function(event){
 };
 
 });
-require.register("component-event/index.js", function(exports, require, module){
-var bind = (window.addEventListener !== undefined) ? 'addEventListener' : 'attachEvent',
-    unbind = (window.removeEventListener !== undefined) ? 'removeEventListener' : 'detachEvent',
-    prefix = (bind !== 'addEventListener') ? 'on' : '';
+
+require.register("component~event@0.1.3", function (exports, module) {
+var bind = window.addEventListener ? 'addEventListener' : 'attachEvent',
+    unbind = window.removeEventListener ? 'removeEventListener' : 'detachEvent',
+    prefix = bind !== 'addEventListener' ? 'on' : '';
 
 /**
  * Bind `el` event `type` to `fn`.
@@ -395,7 +241,6 @@ var bind = (window.addEventListener !== undefined) ? 'addEventListener' : 'attac
 
 exports.bind = function(el, type, fn, capture){
   el[bind](prefix + type, fn, capture || false);
-
   return fn;
 };
 
@@ -412,11 +257,11 @@ exports.bind = function(el, type, fn, capture){
 
 exports.unbind = function(el, type, fn, capture){
   el[unbind](prefix + type, fn, capture || false);
-
   return fn;
 };
 });
-require.register("component-query/index.js", function(exports, require, module){
+
+require.register("component~query@0.0.3", function (exports, module) {
 function one(selector, el) {
   return el.querySelector(selector);
 }
@@ -440,12 +285,13 @@ exports.engine = function(obj){
 };
 
 });
-require.register("component-matches-selector/index.js", function(exports, require, module){
+
+require.register("component~matches-selector@0.1.2", function (exports, module) {
 /**
  * Module dependencies.
  */
 
-var query = require('query');
+var query = require("component~query@0.0.3");
 
 /**
  * Element prototype.
@@ -488,33 +334,36 @@ function match(el, selector) {
 }
 
 });
-require.register("discore-closest/index.js", function(exports, require, module){
-var matches = require('matches-selector')
+
+require.register("discore~closest@0.1.2", function (exports, module) {
+var matches = require("component~matches-selector@0.1.2")
 
 module.exports = function (element, selector, checkYoSelf, root) {
-  element = checkYoSelf ? element : element.parentNode
+  element = checkYoSelf ? {parentNode: element} : element
+
   root = root || document
 
-  do {
+  // Make sure `element !== document` and `element != null`
+  // otherwise we get an illegal invocation
+  while ((element = element.parentNode) && element !== document) {
     if (matches(element, selector))
       return element
     // After `matches` on the edge case that
     // the selector matches the root
     // (when the root is not the document)
     if (element === root)
-      return
-    // Make sure `element !== document`
-    // otherwise we get an illegal invocation
-  } while ((element = element.parentNode) && element !== document)
+      return  
+  }
 }
 });
-require.register("component-delegate/index.js", function(exports, require, module){
+
+require.register("component~delegate@0.2.1", function (exports, module) {
 /**
  * Module dependencies.
  */
 
-var closest = require('closest')
-  , event = require('event');
+var closest = require("discore~closest@0.1.2")
+  , event = require("component~event@0.1.3");
 
 /**
  * Delegate event `type` to `selector`
@@ -553,14 +402,15 @@ exports.unbind = function(el, type, fn, capture){
 };
 
 });
-require.register("component-events/index.js", function(exports, require, module){
+
+require.register("component~events@1.0.6", function (exports, module) {
 
 /**
  * Module dependencies.
  */
 
-var events = require('event');
-var delegate = require('delegate');
+var events = require("component~event@0.1.3");
+var delegate = require("component~delegate@0.2.1");
 
 /**
  * Expose `Events`.
@@ -732,7 +582,8 @@ function parse(event) {
 }
 
 });
-require.register("component-bind/index.js", function(exports, require, module){
+
+require.register("component~bind@0.0.1", function (exports, module) {
 
 /**
  * Slice reference.
@@ -759,29 +610,8 @@ module.exports = function(obj, fn){
 };
 
 });
-require.register("component-has-translate3d/index.js", function(exports, require, module){
 
-var prop = require('transform-property');
-if (!prop) return module.exports = false;
-
-var map = {
-  webkitTransform: '-webkit-transform',
-  OTransform: '-o-transform',
-  msTransform: '-ms-transform',
-  MozTransform: '-moz-transform',
-  transform: 'transform'
-};
-
-// from: https://gist.github.com/lorenzopolidori/3794226
-var el = document.createElement('div');
-el.style[prop] = 'translate3d(1px,1px,1px)';
-document.body.insertBefore(el, null);
-var val = window.getComputedStyle(el).getPropertyValue(map[prop]);
-document.body.removeChild(el);
-module.exports = null != val && val.length && 'none' != val;
-
-});
-require.register("component-transform-property/index.js", function(exports, require, module){
+require.register("component~transform-property@0.0.1", function (exports, module) {
 
 var styles = [
   'webkitTransform',
@@ -803,14 +633,46 @@ for (var i = 0; i < styles.length; i++) {
 }
 
 });
-require.register("component-translate/index.js", function(exports, require, module){
+
+require.register("component~has-translate3d@0.0.2", function (exports, module) {
+
+var prop = require("component~transform-property@0.0.1");
+if (!prop) return module.exports = false;
+
+var map = {
+  webkitTransform: '-webkit-transform',
+  OTransform: '-o-transform',
+  msTransform: '-ms-transform',
+  MozTransform: '-moz-transform',
+  transform: 'transform'
+};
+
+// from: https://gist.github.com/lorenzopolidori/3794226
+var el = document.createElement('div');
+el.style[prop] = 'translate3d(1px,1px,1px)';
+document.body.insertBefore(el, null);
+var val = window.getComputedStyle(el).getPropertyValue(map[prop]);
+document.body.removeChild(el);
+module.exports = null != val && val.length && 'none' != val;
+
+});
+
+require.register("component~translate@0.1.0", function (exports, module) {
 
 /**
  * Module dependencies.
  */
 
-var transform = require('transform-property');
-var has3d = require('has-translate3d');
+var transform = require("component~transform-property@0.0.1");
+var has3d = require("component~has-translate3d@0.0.2");
+
+
+/**
+ * Regexp to check "End with %"
+ */
+
+var percentRegexp = /%$/;
+
 
 /**
  * Expose `translate`.
@@ -818,21 +680,27 @@ var has3d = require('has-translate3d');
 
 module.exports = translate;
 
+
 /**
  * Translate `el` by `(x, y)`.
  *
  * @param {Element} el
- * @param {Number} x
- * @param {Number} y
+ * @param {Number|String} x
+ * @param {Number|String} y 
  * @api public
  */
 
+
 function translate(el, x, y){
+  
+  if (!percentRegexp.test(x)) x += 'px';
+  if (!percentRegexp.test(y)) y += 'px';
+
   if (transform) {
     if (has3d) {
-      el.style[transform] = 'translate3d(' + x + 'px,' + y + 'px, 0)';
+      el.style[transform] = 'translate3d(' + x + ', ' + y + ', 0)';
     } else {
-      el.style[transform] = 'translate(' + x + 'px,' + y + 'px)';
+      el.style[transform] = 'translate(' + x + ',' + y + ')';
     }
   } else {
     el.style.left = x;
@@ -841,13 +709,23 @@ function translate(el, x, y){
 };
 
 });
-require.register("component-classes/index.js", function(exports, require, module){
 
+require.register("component~indexof@0.0.3", function (exports, module) {
+module.exports = function(arr, obj){
+  if (arr.indexOf) return arr.indexOf(obj);
+  for (var i = 0; i < arr.length; ++i) {
+    if (arr[i] === obj) return i;
+  }
+  return -1;
+};
+});
+
+require.register("component~classes@1.2.1", function (exports, module) {
 /**
  * Module dependencies.
  */
 
-var index = require('indexof');
+var index = require("component~indexof@0.0.3");
 
 /**
  * Whitespace regexp.
@@ -881,6 +759,7 @@ module.exports = function(el){
  */
 
 function ClassList(el) {
+  if (!el) throw new Error('A DOM element reference is required');
   this.el = el;
   this.list = el.classList;
 }
@@ -956,26 +835,45 @@ ClassList.prototype.removeMatching = function(re){
 };
 
 /**
- * Toggle class `name`.
+ * Toggle class `name`, can force state via `force`.
+ *
+ * For browsers that support classList, but do not support `force` yet,
+ * the mistake will be detected and corrected.
  *
  * @param {String} name
+ * @param {Boolean} force
  * @return {ClassList}
  * @api public
  */
 
-ClassList.prototype.toggle = function(name){
+ClassList.prototype.toggle = function(name, force){
   // classList
   if (this.list) {
-    this.list.toggle(name);
+    if ("undefined" !== typeof force) {
+      if (force !== this.list.toggle(name, force)) {
+        this.list.toggle(name); // toggle again to correct
+      }
+    } else {
+      this.list.toggle(name);
+    }
     return this;
   }
 
   // fallback
-  if (this.has(name)) {
-    this.remove(name);
+  if ("undefined" !== typeof force) {
+    if (!force) {
+      this.remove(name);
+    } else {
+      this.add(name);
+    }
   } else {
-    this.add(name);
+    if (this.has(name)) {
+      this.remove(name);
+    } else {
+      this.add(name);
+    }
   }
+
   return this;
 };
 
@@ -987,8 +885,9 @@ ClassList.prototype.toggle = function(name){
  */
 
 ClassList.prototype.array = function(){
-  var arr = this.el.className.split(re);
-  if ('' === arr[0]) arr.pop();
+  var str = this.el.className.replace(/^\s+|\s+$/g, '');
+  var arr = str.split(re);
+  if ('' === arr[0]) arr.shift();
   return arr;
 };
 
@@ -1008,7 +907,8 @@ ClassList.prototype.contains = function(name){
 };
 
 });
-require.register("pgherveou-angle/index.js", function(exports, require, module){
+
+require.register("pgherveou~angle@master", function (exports, module) {
 /**
  * calculate the angle between two points
  * @param  {Number} x1
@@ -1029,7 +929,8 @@ module.exports = function(x1, y1, x2, y2) {
   return Math.abs(degrees);
 };
 });
-require.register("yields-prevent/index.js", function(exports, require, module){
+
+require.register("yields~prevent@0.0.2", function (exports, module) {
 
 /**
  * prevent default on the given `e`.
@@ -1052,18 +953,23 @@ module.exports = function(e){
 };
 
 });
-require.register("pgherveou-prefix/index.js", function(exports, require, module){
+
+require.register("pgherveou~prefix@master", function (exports, module) {
 // module globals
 
 var prefixes = ['webkit','Moz','ms','O']
   , len = prefixes.length
-  , test = document.createElement('p')
+  , p = document.createElement('p')
+  , style = p.style
   , capitalize = function (str) {return str.charAt(0).toUpperCase() + str.slice(1);}
   , dasherize = function(str) {
       return str.replace(/([A-Z])/g, function(str,m1) {
         return '-' + m1.toLowerCase();
       });
     };
+
+// nullify p to release dom node
+p = null;
 
 /**
  * get prefix for dom style
@@ -1082,31 +988,33 @@ module.exports = function(ppty, dasherized) {
   var Ppty, name, Name;
 
   // test without prefix
-  if (test.style[ppty] !== undefined) {
+  if (style[ppty] !== undefined) {
     if (!dasherized) return ppty;
-    else return dasherize(ppty);
+    return dasherize(ppty);
   }
 
   // test with prefix
   Ppty = capitalize(ppty);
   for (i = 0; i < len; i++) {
     name = prefixes[i] + Ppty;
-    if (test.style[name] !== undefined) {
+    if (style[name] !== undefined) {
       if (!dasherized) return name;
-      return dasherize('-' + prefixes[i].toLowerCase() + '-' + ppty);
+      return '-' + prefixes[i].toLowerCase() + '-' + dasherize(ppty);
     }
   }
 
   // not found return empty string
   return '';
 };
+
 });
-require.register("pgherveou-transitionend/index.js", function(exports, require, module){
+
+require.register("pgherveou~transitionend@master", function (exports, module) {
 /**
  * module dependencies
  */
 
-var prefix = require('prefix');
+var prefix = require("pgherveou~prefix@master");
 
 // transitionend mapping
 // src: https://github.com/twitter/bootstrap/issues/2870
@@ -1122,7 +1030,8 @@ var transEndEventNames = {
 
 module.exports = transEndEventNames[prefix('transition')];
 });
-require.register("snap/index.js", function(exports, require, module){
+
+require.register("snap", function (exports, module) {
 /*
  * Snap.js
  *
@@ -1138,15 +1047,15 @@ require.register("snap/index.js", function(exports, require, module){
  * Module dependencies
  */
 
-var angle = require('angle'),
-    ev = require('event'),
-    events  = require('events'),
-    classes = require('classes'),
-    emitter = require('emitter'),
-    prevent = require('prevent'),
-    prefix  = require('prefix'),
-    translate = require('translate'),
-    transitionend = require('transitionend');
+var angle = require("pgherveou~angle@master"),
+    ev = require("component~event@0.1.3"),
+    events  = require("component~events@1.0.6"),
+    classes = require("component~classes@1.2.1"),
+    emitter = require("component~emitter@1.1.2"),
+    prevent = require("yields~prevent@0.0.2"),
+    prefix  = require("pgherveou~prefix@master"),
+    translate = require("component~translate@0.1.0"),
+    transitionend = require("pgherveou~transitionend@master");
 
 // module globals
 
@@ -1695,85 +1604,11 @@ Snap.prototype.expand = function(side) {
 
 });
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-require.alias("component-emitter/index.js", "snap/deps/emitter/index.js");
-require.alias("component-emitter/index.js", "emitter/index.js");
-require.alias("component-indexof/index.js", "component-emitter/deps/indexof/index.js");
-
-require.alias("component-event/index.js", "snap/deps/event/index.js");
-require.alias("component-event/index.js", "event/index.js");
-
-require.alias("component-events/index.js", "snap/deps/events/index.js");
-require.alias("component-events/index.js", "events/index.js");
-require.alias("component-event/index.js", "component-events/deps/event/index.js");
-
-require.alias("component-delegate/index.js", "component-events/deps/delegate/index.js");
-require.alias("discore-closest/index.js", "component-delegate/deps/closest/index.js");
-require.alias("discore-closest/index.js", "component-delegate/deps/closest/index.js");
-require.alias("component-matches-selector/index.js", "discore-closest/deps/matches-selector/index.js");
-require.alias("component-query/index.js", "component-matches-selector/deps/query/index.js");
-
-require.alias("discore-closest/index.js", "discore-closest/index.js");
-require.alias("component-event/index.js", "component-delegate/deps/event/index.js");
-
-require.alias("component-bind/index.js", "snap/deps/bind/index.js");
-require.alias("component-bind/index.js", "bind/index.js");
-
-require.alias("component-translate/index.js", "snap/deps/translate/index.js");
-require.alias("component-translate/index.js", "snap/deps/translate/index.js");
-require.alias("component-translate/index.js", "translate/index.js");
-require.alias("component-has-translate3d/index.js", "component-translate/deps/has-translate3d/index.js");
-require.alias("component-transform-property/index.js", "component-has-translate3d/deps/transform-property/index.js");
-
-require.alias("component-transform-property/index.js", "component-translate/deps/transform-property/index.js");
-
-require.alias("component-translate/index.js", "component-translate/index.js");
-require.alias("component-classes/index.js", "snap/deps/classes/index.js");
-require.alias("component-classes/index.js", "classes/index.js");
-require.alias("component-indexof/index.js", "component-classes/deps/indexof/index.js");
-
-require.alias("pgherveou-angle/index.js", "snap/deps/angle/index.js");
-require.alias("pgherveou-angle/index.js", "snap/deps/angle/index.js");
-require.alias("pgherveou-angle/index.js", "angle/index.js");
-require.alias("pgherveou-angle/index.js", "pgherveou-angle/index.js");
-require.alias("yields-prevent/index.js", "snap/deps/prevent/index.js");
-require.alias("yields-prevent/index.js", "prevent/index.js");
-
-require.alias("pgherveou-prefix/index.js", "snap/deps/prefix/index.js");
-require.alias("pgherveou-prefix/index.js", "snap/deps/prefix/index.js");
-require.alias("pgherveou-prefix/index.js", "prefix/index.js");
-require.alias("pgherveou-prefix/index.js", "pgherveou-prefix/index.js");
-require.alias("pgherveou-transitionend/index.js", "snap/deps/transitionend/index.js");
-require.alias("pgherveou-transitionend/index.js", "snap/deps/transitionend/index.js");
-require.alias("pgherveou-transitionend/index.js", "transitionend/index.js");
-require.alias("pgherveou-prefix/index.js", "pgherveou-transitionend/deps/prefix/index.js");
-require.alias("pgherveou-prefix/index.js", "pgherveou-transitionend/deps/prefix/index.js");
-require.alias("pgherveou-prefix/index.js", "pgherveou-prefix/index.js");
-require.alias("pgherveou-transitionend/index.js", "pgherveou-transitionend/index.js");
-require.alias("snap/index.js", "snap/index.js");if (typeof exports == "object") {
+if (typeof exports == "object") {
   module.exports = require("snap");
 } else if (typeof define == "function" && define.amd) {
   define([], function(){ return require("snap"); });
 } else {
   this["Snap"] = require("snap");
-}})();
+}
+})()
